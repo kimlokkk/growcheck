@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:growcheck_app_v2/pages/home/home_v2.dart';
 import 'package:growcheck_app_v2/pages/home/profile_page.dart';
 import 'package:growcheck_app_v2/pages/home/screening_list.dart';
 import 'package:growcheck_app_v2/pages/home/screening_today_list.dart';
@@ -240,14 +241,20 @@ class _HomeState extends State<Home> {
                         ),
                         InkWell(
                           onTap: () async {
-                            Navigator.pushReplacement(
+                            /*Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
                                 builder: (BuildContext context) => const Login(),
                               ),
                             );
                             SharedPreferences prefs = await SharedPreferences.getInstance();
-                            prefs.remove('staffNo');
+                            prefs.remove('staffNo');*/
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (BuildContext context) => const HomeV2(),
+                              ),
+                            );
                           },
                           child: const Icon(
                             Icons.exit_to_app,

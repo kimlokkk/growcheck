@@ -414,6 +414,7 @@ class _StudentMainDashboardState extends State<StudentMainDashboard> {
                                         studentId: screeningData['student_id'],
                                         screeningId: screeningData['screening_id'],
                                         age: _safeParseDouble(screeningData['age']),
+                                        screeningDate: screeningData['screening_date'],
                                         studentName: screeningData['student'],
                                         ageFineMotor: _safeParseDouble(screeningData['age_fine_motor']),
                                         ageGrossMotor: _safeParseDouble(screeningData['age_gross_motor']),

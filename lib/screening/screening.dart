@@ -448,331 +448,645 @@ class _ScreeningState extends State<Screening> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final domainKeys = domainQuestions.keys.toList();
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        title: const Text('Screening Questions'),
+  Widget _premiumHeader() {
+    return Container(
+      padding: EdgeInsets.all(2.h),
+      decoration: BoxDecoration(
+        color: Growkids.purpleFlo,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.10),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
-          : Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage('assets/bg-home.jpg'),
-                  fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(
-                    Growkids.purple,
-                    BlendMode.color,
+      child: Row(
+        children: [
+          Container(
+            height: 6.h,
+            width: 6.h,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(Icons.assignment_rounded, color: Growkids.purpleFlo, size: 22.sp),
+          ),
+          SizedBox(width: 2.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.studentName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: 0.4.h),
+                Text(
+                  'ID: ${widget.studentId} • ${widget.age} • ${widget.ageInMonths}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: Colors.white.withOpacity(0.85),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 1.h),
+                Wrap(
+                  spacing: 1.h,
+                  runSpacing: 1.h,
+                  children: [
+                    _pill('Step', '${currentStep + 1} / ${domainQuestions.keys.length}'),
+                    _pill('Age (mo)', widget.ageInMonthsINT.toString()),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: isLoading ? null : fetchQuestions,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: EdgeInsets.all(1.5.h),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(Icons.refresh_rounded, size: 3.h, color: Growkids.purpleFlo),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pill(String label, String value) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 1.2.h, vertical: 0.65.h),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withOpacity(0.22)),
+      ),
+      child: Text(
+        '$label: $value',
+        style: TextStyle(
+          fontSize: 12.sp,
+          color: Growkids.purpleFlo,
+        ),
+      ),
+    );
+  }
+
+  Widget _domainHeader(String domain, double? devAge) {
+    return Container(
+      padding: EdgeInsets.all(2.h),
+      decoration: BoxDecoration(
+        color: Growkids.purpleFlo.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withOpacity(0.08)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 5.h,
+            width: 5.h,
+            decoration: BoxDecoration(
+              color: Growkids.purpleFlo.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.layers_rounded, color: Growkids.purpleFlo, size: 3.h),
+          ),
+          SizedBox(width: 2.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(domain, style: TextStyle(fontSize: 14.sp)),
+                Text(
+                  '${(domainQuestions[domain] ?? []).length} items',
+                  style: TextStyle(fontSize: 12.sp, color: Colors.black54),
+                ),
+              ],
+            ),
+          ),
+          if (devAge != null)
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 1.5.h, vertical: 0.9.h),
+              decoration: BoxDecoration(
+                color: Growkids.purpleFlo.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                'Dev Age ${devAge.toStringAsFixed(0)} mo',
+                style: TextStyle(fontSize: 12.sp, color: Growkids.purpleFlo),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _headerPill(String text) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 1.h, vertical: 0.5.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.black.withOpacity(0.12)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 12.sp),
+      ),
+    );
+  }
+
+  Widget _scrollingQuestionList(String domain, List<Map<String, dynamic>> qs) {
+    String uiLabel(String v) => (v == 'No Opportunity') ? 'N.O' : v;
+    String storeValue(String v) => (v == 'N.O') ? 'No Opportunity' : v;
+
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        // header row (fixed inside scroll area? ok sebab dia part list)
+        Container(
+          padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 1.h),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.04),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.black.withOpacity(0.08)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 6,
+                child: Text(
+                  'Item',
+                  style: TextStyle(
+                    fontSize: 14.sp,
                   ),
                 ),
               ),
-              padding: EdgeInsets.all(2.h),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Stepper(
-                      connectorThickness: 0.3.h,
-                      type: StepperType.horizontal,
-                      currentStep: currentStep,
-                      onStepTapped: (int step) {
-                        setState(() {
-                          currentStep = step;
-                        });
-                      },
-                      onStepContinue: () {
-                        if (currentStep < domainKeys.length - 1) {
-                          setState(() {
-                            currentStep++;
-                          });
-                        }
-                      },
-                      onStepCancel: () {
-                        if (currentStep > 0) {
-                          setState(() {
-                            currentStep--;
-                          });
-                        }
-                      },
-                      steps: domainKeys.map((domain) {
-                        List<Map<String, dynamic>> questionsInDomain = domainQuestions[domain] ?? [];
-                        return Step(
-                          label: Text(
-                            domain,
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                            ),
-                          ),
-                          title: const SizedBox.shrink(),
-                          content: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (developmentAgeByDomain.containsKey(domain) && developmentAgeByDomain[domain] != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 16.0),
-                                  child: Text(
-                                    'Development Age: ${developmentAgeByDomain[domain]} months',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              if (!isSubmissionValid)
-                                const Text(
-                                  'Please complete all questions or achieve 3 consecutive passes in each domain.',
-                                  style: TextStyle(
-                                    color: Colors.red,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              Card(
-                                elevation: 10,
-                                color: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Container(
-                                  padding: EdgeInsets.all(1.h),
-                                  child: Table(
-                                    border: const TableBorder.symmetric(
-                                      inside: BorderSide(width: 0.5),
-                                    ),
-                                    columnWidths: const {
-                                      0: FlexColumnWidth(3),
-                                      1: FlexColumnWidth(1),
-                                      2: FlexColumnWidth(1),
-                                      3: FlexColumnWidth(1),
-                                    },
-                                    children: [
-                                      TableRow(
-                                        children: [
-                                          Padding(
-                                            padding: EdgeInsets.all(1.h),
-                                            child: Text(
-                                              'Item',
-                                              style: TextStyle(
-                                                fontSize: 12.sp,
-                                              ),
-                                            ),
-                                          ),
-                                          Padding(
-                                            padding: EdgeInsets.all(1.h),
-                                            child: Text(
-                                              'Pass',
-                                              style: TextStyle(
-                                                fontSize: 12.sp,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ),
-                                          Padding(
-                                            padding: EdgeInsets.all(1.h),
-                                            child: Text(
-                                              'Fail',
-                                              style: TextStyle(
-                                                fontSize: 12.sp,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ),
-                                          Padding(
-                                            padding: EdgeInsets.all(1.h),
-                                            child: Text(
-                                              'N.O',
-                                              style: TextStyle(
-                                                fontSize: 12.sp,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ),
-                                          Padding(
-                                            padding: EdgeInsets.all(1.h),
-                                            child: Text(
-                                              'Direction',
-                                              style: TextStyle(
-                                                fontSize: 12.sp,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      ...questionsInDomain.asMap().entries.map((entry) {
-                                        int index = entry.key;
-                                        Map<String, dynamic> question = entry.value;
+              Expanded(
+                flex: 4,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _headerPill('Pass'),
+                    SizedBox(width: 2.w),
+                    _headerPill('Fail'),
+                    SizedBox(width: 2.w),
+                    _headerPill('N.O'),
+                  ],
+                ),
+              ),
+              SizedBox(width: 1.0.h),
+              SizedBox(
+                width: 8.5.h,
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Text('Dir', style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w900)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 1.h),
 
-                                        return TableRow(
-                                          children: [
-                                            Padding(
-                                              padding: EdgeInsets.all(1.h),
-                                              child: Text(
-                                                question['component'],
-                                                style: TextStyle(
-                                                  fontSize: 12.sp,
-                                                ),
-                                              ),
-                                            ),
-                                            RadioCell(
-                                              groupValue: question['selectedOption'],
-                                              value: 'Pass',
-                                              onChanged: (val) {
-                                                updateSelection(domain, index, val!);
-                                              },
-                                            ),
-                                            RadioCell(
-                                              groupValue: question['selectedOption'],
-                                              value: 'Fail',
-                                              onChanged: (val) {
-                                                updateSelection(domain, index, val!);
-                                              },
-                                            ),
-                                            RadioCell(
-                                              groupValue: question['selectedOption'],
-                                              value: 'No Opportunity',
-                                              onChanged: (val) {
-                                                updateSelection(domain, index, val!);
-                                              },
-                                            ),
-                                            Center(
-                                              child: ElevatedButton(
-                                                onPressed: (question['hasMaterial'] == '1' &&
-                                                        question['directionId'] != null)
-                                                    ? () {
-                                                        final dirId = question['directionId'] is int
-                                                            ? question['directionId'] as int
-                                                            : int.tryParse(question['directionId'].toString()) ?? 0;
-                                                        if (dirId > 0) {
-                                                          _openDirectionSheet(question['component'].toString(), dirId);
-                                                        } else {
-                                                          _showSnack('Invalid direction id');
-                                                        }
-                                                      }
-                                                    : null,
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      question['hasMaterial'] == '1' ? Growkids.purple : Colors.grey,
-                                                  minimumSize: Size(10.w, 2.5.h),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                ),
-                                                child: const Text(
-                                                  'View',
-                                                  style: TextStyle(color: Colors.white),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      }).toList(),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          isActive: currentStep >= domainKeys.indexOf(domain),
-                        );
-                      }).toList(),
-                      controlsBuilder: (BuildContext context, ControlsDetails details) {
-                        final isLastStep = currentStep == domainKeys.length - 1;
-                        return Padding(
-                          padding: EdgeInsets.only(top: 1.h),
-                          child: Row(
-                            children: [
-                              if (currentStep > 0)
-                                SizedBox(
-                                  height: 5.h,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: GrowkidsPastel.purple2,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      elevation: 5,
-                                    ),
-                                    onPressed: details.onStepCancel,
-                                    child: Text(
-                                      'Back',
-                                      style: TextStyle(
-                                        fontSize: 14.sp,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              SizedBox(
-                                width: 2.w,
-                              ),
-                              if (!isLastStep)
-                                SizedBox(
-                                  height: 5.h,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Growkids.purple,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      elevation: 5,
-                                    ),
-                                    onPressed: details.onStepContinue,
-                                    child: Text(
-                                      'Next',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14.sp,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      },
+        ...qs.asMap().entries.map((entry) {
+          final index = entry.key;
+          final q = entry.value;
+
+          final selectedStored = (q['selectedOption'] ?? '').toString().trim();
+          final selectedUI = selectedStored.isEmpty ? '' : uiLabel(selectedStored);
+
+          final int hasMat = (q['hasMaterial'] is int)
+              ? q['hasMaterial'] as int
+              : int.tryParse(q['hasMaterial']?.toString() ?? '') ?? 0;
+
+          final int dirId = (q['directionId'] is int)
+              ? q['directionId'] as int
+              : int.tryParse(q['directionId']?.toString() ?? '') ?? 0;
+
+          final bool canView = hasMat == 1 && dirId > 0;
+
+          return Container(
+            margin: EdgeInsets.only(bottom: 1.h),
+            padding: EdgeInsets.all(1.5.h),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.black.withOpacity(0.10)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 6,
+                  child: Text(
+                    (q['component'] ?? '').toString(),
+                    style: TextStyle(fontSize: 13.sp),
+                  ),
+                ),
+
+                Expanded(
+                  flex: 4,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 0.8.h,
+                    runSpacing: 0.8.h,
+                    children: [
+                      RadioPill(
+                        groupValue: selectedUI,
+                        value: 'Pass',
+                        onChanged: (val) => updateSelection(domain, index, storeValue(val!)),
+                      ),
+                      RadioPill(
+                        groupValue: selectedUI,
+                        value: 'Fail',
+                        onChanged: (val) => updateSelection(domain, index, storeValue(val!)),
+                      ),
+                      RadioPill(
+                        groupValue: selectedUI,
+                        value: 'N.O',
+                        onChanged: (val) => updateSelection(domain, index, storeValue(val!)),
+                      ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(width: 1.0.h),
+
+                // Direction button
+                SizedBox(
+                  width: 8.5.h,
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: ElevatedButton(
+                      onPressed: canView ? () => _openDirectionSheet(q['component'].toString(), dirId) : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Growkids.purpleFlo,
+                        disabledBackgroundColor: Colors.black.withOpacity(0.12),
+                        elevation: 0,
+                        padding: EdgeInsets.symmetric(horizontal: 1.2.h),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+                      ),
+                      child: Text(
+                        'View',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
                     ),
                   ),
-                  if (currentStep == domainKeys.length - 1)
-                    SizedBox(
-                      height: 1.h,
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _bottomActionBar({
+    required List<String> domainKeys,
+    required bool isLastStep,
+    required VoidCallback? onBack,
+    required VoidCallback? onNext,
+  }) {
+    if (domainKeys.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(2.2.h, 1.2.h, 2.2.h, 2.0.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.black.withOpacity(0.08))),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, -10),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            // Back
+            Expanded(
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.black,
+                  side: BorderSide(color: Colors.black.withOpacity(0.18), width: 1.2),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  padding: EdgeInsets.symmetric(vertical: 1.55.h),
+                ),
+                onPressed: onBack,
+                child: Text(
+                  'Back',
+                  style: TextStyle(fontSize: 14.sp),
+                ),
+              ),
+            ),
+
+            // Kalau bukan last step, show Next
+            if (!isLastStep) ...[
+              SizedBox(width: 1.2.h),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Growkids.purpleFlo,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: EdgeInsets.symmetric(vertical: 1.55.h),
+                    elevation: 0,
+                  ),
+                  onPressed: onNext,
+                  child: Text(
+                    'Next',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.sp,
                     ),
-                  SizedBox(
-                    height: 5.h,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Growkids.purple,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
+
+            // Kalau last step, show Save saja (tiada "Last step")
+            if (isLastStep) ...[
+              SizedBox(width: 1.2.h),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Growkids.purpleFlo,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: EdgeInsets.symmetric(vertical: 1.55.h),
+                    elevation: 0,
+                  ),
+                  onPressed: isSubmitting ? null : handleSubmitFailComponents,
+                  child: isSubmitting
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(
+                          'Save',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14.sp,
+                          ),
                         ),
-                        elevation: 5,
-                      ),
-                      onPressed: isSubmitting ? null : handleSubmitFailComponents,
-                      child: isSubmitting
-                          ? SizedBox(
-                              width: 20.w,
-                              height: 3.h,
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final domainKeys = domainQuestions.keys.toList();
+    final bool hasDomains = domainKeys.isNotEmpty;
+
+    // safety clamp
+    final int step = hasDomains ? currentStep.clamp(0, domainKeys.length - 1) : 0;
+    final String activeDomain = hasDomains ? domainKeys[step] : '';
+    final List<Map<String, dynamic>> qs = hasDomains ? (domainQuestions[activeDomain] ?? []) : [];
+
+    final bool isLastStep = hasDomains && step == domainKeys.length - 1;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF6F7FB),
+      appBar: AppBar(
+        backgroundColor: Growkids.purpleFlo,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'Screening',
+          style: TextStyle(
+            color: Colors.white,
+          ),
+        ),
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SafeArea(
+              child: Column(
+                children: [
+                  // ===== Header student (FIXED) =====
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(2.2.h, 1.6.h, 2.2.h, 1.2.h),
+                    child: _premiumHeader(),
+                  ),
+
+                  // ===== Main white card =====
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 2.2.h),
+                      child: Container(
+                        padding: EdgeInsets.all(1.6.h),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: Colors.black.withOpacity(0.08)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 18,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            // ===== Progress + Step tabs (FIXED) =====
+                            if (hasDomains) ...[
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(999),
+                                child: LinearProgressIndicator(
+                                  value: (step + 1) / domainKeys.length,
+                                  minHeight: 0.7.h,
+                                  backgroundColor: Colors.black.withOpacity(0.06),
+                                  color: Growkids.purpleFlo,
                                 ),
                               ),
-                            )
-                          : Text(
-                              'Save',
-                              style: TextStyle(
-                                fontSize: 16.sp,
-                                color: Colors.white,
+                              SizedBox(height: 1.2.h),
+
+                              // step tabs ala "stepper" (fixed)
+                              SizedBox(
+                                height: 4.5.h,
+                                child: ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: domainKeys.length,
+                                  separatorBuilder: (_, __) => SizedBox(width: 0.9.h),
+                                  itemBuilder: (context, i) {
+                                    final bool selected = i == step;
+                                    return InkWell(
+                                      borderRadius: BorderRadius.circular(999),
+                                      onTap: () => setState(() => currentStep = i),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 160),
+                                        padding: EdgeInsets.symmetric(horizontal: 1.4.h, vertical: 0.9.h),
+                                        decoration: BoxDecoration(
+                                          color: selected ? Growkids.purpleFlo : Colors.black.withOpacity(0.04),
+                                          borderRadius: BorderRadius.circular(999),
+                                          border: Border.all(
+                                            color: selected ? Growkids.purpleFlo : Colors.black.withOpacity(0.10),
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            domainKeys[i],
+                                            style: TextStyle(
+                                              fontSize: 13.sp,
+                                              color: selected ? Colors.white : Colors.black87,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
+                              SizedBox(height: 1.2.h),
+
+                              // ===== Domain header (FIXED) =====
+                              _domainHeader(activeDomain, developmentAgeByDomain[activeDomain]),
+                              SizedBox(height: 1.2.h),
+                            ],
+
+                            if (!hasDomains)
+                              Expanded(
+                                child: Center(
+                                  child: Text(
+                                    'No domains found.',
+                                    style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                              )
+                            else ...[
+                              if (!isSubmissionValid)
+                                Padding(
+                                  padding: EdgeInsets.only(bottom: 1.h),
+                                  child: Text(
+                                    'Please complete all questions or achieve 3 consecutive passes in each domain.',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 11.sp,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+
+                              // ===== ONLY THIS PART SCROLLS =====
+                              Expanded(
+                                child: _scrollingQuestionList(activeDomain, qs),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                     ),
+                  ),
+
+                  // ===== Bottom action bar (FIXED) =====
+                  _bottomActionBar(
+                    domainKeys: domainKeys,
+                    isLastStep: isLastStep,
+                    onBack: step > 0 ? () => setState(() => currentStep = step - 1) : null,
+                    onNext: (!isLastStep) ? () => setState(() => currentStep = step + 1) : null,
                   ),
                 ],
               ),
             ),
+    );
+  }
+}
+
+class RadioPill extends StatelessWidget {
+  final String groupValue;
+  final String value;
+  final ValueChanged<String?> onChanged;
+
+  const RadioPill({
+    super.key,
+    required this.groupValue,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool selected = groupValue == value;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: () => onChanged(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: EdgeInsets.symmetric(horizontal: 1.h, vertical: 0.55.h),
+        decoration: BoxDecoration(
+          color: selected ? Growkids.purpleFlo : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? Growkids.purpleFlo : Colors.black.withOpacity(0.18),
+            width: 1.2,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.10),
+                    blurRadius: 10,
+                    offset: const Offset(0, 6),
+                  ),
+                ]
+              : [],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              height: 1.45.h,
+              width: 1.45.h,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected ? Colors.white : Colors.black.withOpacity(0.06),
+                border: Border.all(
+                  color: selected ? Colors.white : Colors.black.withOpacity(0.25),
+                  width: 1.0,
+                ),
+              ),
+              child: selected ? Icon(Icons.check, size: 1.h, color: Growkids.purpleFlo) : const SizedBox.shrink(),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: selected ? Colors.white : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

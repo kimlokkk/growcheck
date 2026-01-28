@@ -6,7 +6,7 @@ import 'package:growcheck_app_v2/ui/colour.dart';
 import 'package:http/http.dart' as http;
 import 'package:sizer/sizer.dart';
 
-class EditScreening extends StatefulWidget {
+class EditScreeningOld extends StatefulWidget {
   final String studentId;
   final String screeningId;
   final String studentName;
@@ -19,7 +19,7 @@ class EditScreening extends StatefulWidget {
   final List<Map<String, dynamic>> failData;
   // failData contains the list of components that are not 'Pass'
 
-  const EditScreening({
+  const EditScreeningOld({
     super.key,
     required this.studentId,
     required this.screeningId,
@@ -34,10 +34,10 @@ class EditScreening extends StatefulWidget {
   });
 
   @override
-  State<EditScreening> createState() => _EditScreeningState();
+  State<EditScreeningOld> createState() => _EditScreeningOldState();
 }
 
-class _EditScreeningState extends State<EditScreening> {
+class _EditScreeningOldState extends State<EditScreeningOld> {
   List<Map<String, dynamic>> questions = [];
   Map<String, List<Map<String, dynamic>>> domainQuestions = {};
   int currentStep = 0;

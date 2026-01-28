@@ -32,6 +32,22 @@ class Growkids {
       900: Color(0xfffdcee2), //100%
     },
   );
+
+  static const MaterialColor purpleFlo = MaterialColor(
+    0xFF6C48FF, // 0% comes in here, this will be color picked if no shade is selected when defining a Color property which doesn’t require a swatch.
+    <int, Color>{
+      50: Color(0xff330012), //10%
+      100: Color(0xff660024), //20%
+      200: Color(0xff62042b), //30%
+      300: Color(0xff930641), //40%
+      400: Color(0xffc40856), //50%
+      500: Color(0xfff50a6c), //60%
+      600: Color(0xfff73b89), //70%
+      700: Color(0xfff96ca7), //80%
+      800: Color(0xfffb9dc4), //90%
+      900: Color(0xfffdcee2), //100%
+    },
+  );
 }
 
 class GrowkidsPastel {
