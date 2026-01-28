@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:growcheck_app_v2/declaration/profile_declaration.dart';
 import 'package:growcheck_app_v2/pages/home/home.dart';
+import 'package:growcheck_app_v2/pages/home/home_v2.dart';
 import 'package:growcheck_app_v2/ui/colour.dart';
 import 'package:http/http.dart' as http;
 import 'package:sizer/sizer.dart';
@@ -198,179 +199,269 @@ class _EditScreeningState extends State<EditScreening> {
 
   // Build a list of ExpansionTiles for each domain.
   List<Widget> _buildDomainTiles() {
-    List<Widget> tiles = [];
+    final tiles = <Widget>[];
+
     domainQuestions.forEach((domain, qs) {
+      final devAge = developmentAgeByDomain[domain];
+
       tiles.add(
         Container(
-          margin: EdgeInsets.symmetric(vertical: 1.h),
+          margin: EdgeInsets.only(bottom: 1.2.h),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.black.withOpacity(0.10)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
           child: ExpansionTile(
-            tilePadding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 2.h),
-            collapsedShape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                15,
-              ),
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                15,
-              ),
-            ),
-            backgroundColor: Colors.white,
-            collapsedBackgroundColor: GrowkidsPastel.purple2,
+            tilePadding: EdgeInsets.symmetric(vertical: 1.2.h, horizontal: 1.6.h),
+            childrenPadding: EdgeInsets.fromLTRB(1.6.h, 0, 1.6.h, 1.6.h),
+            collapsedIconColor: Colors.black87,
+            iconColor: Colors.black87,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
             title: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  domain,
-                  style: TextStyle(
-                    fontSize: 16.sp,
+                Container(
+                  height: 5.h,
+                  width: 5.h,
+                  decoration: BoxDecoration(
+                    color: Growkids.purpleFlo.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.layers_rounded,
+                    color: Growkids.purpleFlo,
+                    size: 3.h,
                   ),
                 ),
-                if (developmentAgeByDomain[domain] != null)
-                  Text(
-                    'Dev Age: ${developmentAgeByDomain[domain]} Months',
-                    style: TextStyle(fontSize: 14.sp, color: Growkids.purple),
+                SizedBox(width: 1.2.h),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        domain,
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                        ),
+                      ),
+                      Text(
+                        '${qs.length} items',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (devAge != null)
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 1.5.h, vertical: 1.h),
+                    decoration: BoxDecoration(
+                      color: Growkids.purpleFlo.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'Dev Age ${devAge.toStringAsFixed(0)} mo',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: Growkids.purpleFlo,
+                      ),
+                    ),
                   ),
               ],
             ),
             children: [
-              // Table header for the domain questions
+              // Header row
               Container(
-                color: GrowkidsPastel.purple2,
-                padding: EdgeInsets.symmetric(vertical: 1.h),
-                child: Table(
-                  columnWidths: const {
-                    0: FlexColumnWidth(3),
-                    1: FlexColumnWidth(1),
-                    2: FlexColumnWidth(1),
-                    3: FlexColumnWidth(1),
-                  },
+                padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 1.h),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.04),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.black.withOpacity(0.08)),
+                ),
+                child: Row(
                   children: [
-                    TableRow(
-                      children: [
-                        Text('Item',
-                            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.center),
-                        Text('Pass',
-                            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.center),
-                        Text('Fail',
-                            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.center),
-                        Text('N.O',
-                            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.center),
-                      ],
+                    Expanded(
+                      flex: 6,
+                      child: Text(
+                        'Item',
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 4,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          _headerPill('Pass'),
+                          SizedBox(width: 2.w),
+                          _headerPill('Fail'),
+                          SizedBox(width: 2.w),
+                          _headerPill('N.O'),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              // Table rows for each question
-              Container(
-                padding: EdgeInsets.all(1.h),
-                child: Table(
-                  columnWidths: const {
-                    0: FlexColumnWidth(3),
-                    1: FlexColumnWidth(1),
-                    2: FlexColumnWidth(1),
-                    3: FlexColumnWidth(1),
-                  },
-                  children: qs.asMap().entries.map((entry) {
-                    int index = entry.key;
-                    Map<String, dynamic> question = entry.value;
-                    return TableRow(
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.all(1.h),
-                          child: Text(question['component'], style: TextStyle(fontSize: 14.sp)),
+
+              SizedBox(height: 1.h),
+
+              // Rows
+              ...qs.asMap().entries.map((entry) {
+                final index = entry.key;
+                final question = entry.value;
+
+                return Container(
+                  margin: EdgeInsets.only(bottom: 1.h),
+                  padding: EdgeInsets.all(1.5.h),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.black.withOpacity(0.10)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 6,
+                        child: Text(
+                          (question['component'] ?? '').toString(),
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                          ),
                         ),
-                        RadioCell(
-                          groupValue: question['selectedOption'],
-                          value: 'Pass',
-                          onChanged: (val) => updateSelection(domain, index, val!),
+                      ),
+                      Expanded(
+                        flex: 4,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            RadioCell(
+                              groupValue: question['selectedOption'],
+                              value: 'Pass',
+                              onChanged: (val) => updateSelection(domain, index, val!),
+                            ),
+                            SizedBox(width: 0.8.h),
+                            RadioCell(
+                              groupValue: question['selectedOption'],
+                              value: 'Fail',
+                              onChanged: (val) => updateSelection(domain, index, val!),
+                            ),
+                            SizedBox(width: 0.8.h),
+                            RadioCell(
+                              groupValue: question['selectedOption'],
+                              value: 'N.O',
+                              onChanged: (val) => updateSelection(domain, index, val!),
+                            ),
+                          ],
                         ),
-                        RadioCell(
-                          groupValue: question['selectedOption'],
-                          value: 'Fail',
-                          onChanged: (val) => updateSelection(domain, index, val!),
-                        ),
-                        RadioCell(
-                          groupValue: question['selectedOption'],
-                          value: 'N.O',
-                          onChanged: (val) => updateSelection(domain, index, val!),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
-              ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ],
           ),
         ),
       );
     });
+
     return tiles;
+  }
+
+  Widget _headerPill(String text) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 1.h, vertical: 0.5.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.black.withOpacity(0.12)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12.sp,
+        ),
+      ),
+    );
   }
 
   // Build a card for therapist suggestion.
   Widget _buildSuggestionTile() {
-    return Column(
-      children: [
-        SizedBox(
-          height: 2.h,
-        ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              color: Growkids.pink,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(10),
-                topRight: Radius.circular(10),
-              ),
-            ),
-            padding: EdgeInsets.all(1.h),
-            child: Text(
-              'Therapist Note',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14.sp,
-              ),
-              textAlign: TextAlign.center,
-            ),
+    return Container(
+      margin: EdgeInsets.only(top: 0.8.h),
+      padding: EdgeInsets.all(1.8.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withOpacity(0.10)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
           ),
-        ),
-        Container(
-          padding: EdgeInsets.all(2.h),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                height: 4.2.h,
+                width: 4.2.h,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.notes_rounded, color: Colors.black87, size: 18.sp),
+              ),
+              SizedBox(width: 1.2.h),
+              Expanded(
+                child: Text(
+                  'Therapist Note',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ],
           ),
-          child: TextFormField(
+          SizedBox(height: 1.2.h),
+          TextFormField(
             initialValue: therapistSuggestion,
-            maxLines: 3,
-            decoration: const InputDecoration(
+            maxLines: 4,
+            decoration: InputDecoration(
+              hintText: 'Enter your note/comment…',
+              hintStyle: TextStyle(color: Colors.black45, fontWeight: FontWeight.w600),
               filled: true,
-              fillColor: GrowkidsPastel.pink,
+              fillColor: Colors.black.withOpacity(0.04),
+              contentPadding: EdgeInsets.symmetric(horizontal: 1.6.h, vertical: 1.4.h),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(
-                  color: Growkids.pink,
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: Growkids.purpleFlo.withOpacity(0.60), width: 1.4),
               ),
-              labelText: 'Enter your note/comment',
-              labelStyle: TextStyle(
-                color: Growkids.pink,
-              ),
+            ),
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: Colors.black87,
             ),
             onChanged: (val) {
               setState(() {
@@ -378,8 +469,8 @@ class _EditScreeningState extends State<EditScreening> {
               });
             },
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -443,7 +534,7 @@ class _EditScreeningState extends State<EditScreening> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const Home(),
+                      builder: (context) => const HomeV2(),
                     ),
                   );
                 },
@@ -461,7 +552,7 @@ class _EditScreeningState extends State<EditScreening> {
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const Home()));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const HomeV2()));
                 },
                 child: const Text('OK'),
               ),
@@ -558,7 +649,7 @@ class _EditScreeningState extends State<EditScreening> {
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const Home()));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const HomeV2()));
                 },
                 child: const Text('OK'),
               ),
@@ -601,78 +692,150 @@ class _EditScreeningState extends State<EditScreening> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        title: const Text('Edit Screening'),
+        backgroundColor: Growkids.purpleFlo,
+        elevation: 0,
+        centerTitle: false,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          'Edit Screening',
+          style: TextStyle(
+            color: Colors.white,
+          ),
+        ),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Container(
-              height: 100.h,
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage('assets/bg-home.jpg'),
-                  fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(Growkids.purple, BlendMode.color),
-                ),
-              ),
-              padding: EdgeInsets.all(2.h),
+          : SafeArea(
               child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(2.2.h, 1.6.h, 2.2.h, 2.2.h),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // Student card - PURPLE FLO
+                    Container(
+                      padding: EdgeInsets.all(1.8.h),
+                      decoration: BoxDecoration(
+                        color: Growkids.purpleFlo,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.10),
+                            blurRadius: 18,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            height: 5.2.h,
+                            width: 5.2.h,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.18),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(Icons.edit_note_rounded, color: Colors.white, size: 22.sp),
+                          ),
+                          SizedBox(width: 1.6.h),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.studentName,
+                                  style: TextStyle(
+                                    fontSize: 15.sp,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                SizedBox(height: 0.4.h),
+                                Text(
+                                  'Screening ID: ${widget.screeningId} • Age: ${widget.age.toInt()} months',
+                                  style: TextStyle(
+                                    fontSize: 11.5.sp,
+                                    color: Colors.white.withOpacity(0.85),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: 1.6.h),
+
                     ..._buildDomainTiles(),
+
                     _buildSuggestionTile(),
-                    SizedBox(height: 2.h),
-                    // Two buttons: Update and Submit
+
+                    SizedBox(height: 1.8.h),
+
                     Row(
                       children: [
                         Expanded(
                           child: SizedBox(
-                            height: 5.h,
+                            height: 5.2.h,
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Growkids.purple,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                elevation: 5,
+                                backgroundColor: Growkids.purpleFlo,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               ),
                               onPressed: isSubmitting ? null : handleUpdate,
                               child: isSubmitting
                                   ? SizedBox(
-                                      width: 20.w,
+                                      width: 22.w,
                                       height: 3.h,
                                       child: const Center(
                                         child: CircularProgressIndicator(
-                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
                                       ),
                                     )
-                                  : const Text('Update Screening', style: TextStyle(fontSize: 16, color: Colors.white)),
+                                  : Text(
+                                      'Update',
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),
-                        SizedBox(width: 2.w),
+                        SizedBox(width: 1.2.h),
                         Expanded(
                           child: SizedBox(
-                            height: 5.h,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Growkids.pink,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                elevation: 5,
+                            height: 5.2.h,
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.black,
+                                side: BorderSide(color: Colors.black.withOpacity(0.18), width: 1.2),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                backgroundColor: Colors.white,
                               ),
                               onPressed: isSubmitting ? null : handleFinalSubmit,
                               child: isSubmitting
                                   ? SizedBox(
-                                      width: 20.w,
+                                      width: 22.w,
                                       height: 3.h,
                                       child: const Center(
-                                        child: CircularProgressIndicator(
-                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+                                        child: CircularProgressIndicator(),
                                       ),
                                     )
-                                  : const Text('Submit Screening', style: TextStyle(fontSize: 16, color: Colors.white)),
+                                  : Text(
+                                      'Submit',
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        color: Colors.black,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),
@@ -700,11 +863,58 @@ class RadioCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Radio<String>(
-        value: value,
-        groupValue: groupValue,
-        onChanged: onChanged,
+    final bool selected = groupValue == value;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: () => onChanged(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: EdgeInsets.symmetric(horizontal: 1.h, vertical: 0.5.h),
+        decoration: BoxDecoration(
+          color: selected ? Growkids.purpleFlo : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? Growkids.purpleFlo : Colors.black.withOpacity(0.18),
+            width: 1.2,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.10),
+                    blurRadius: 10,
+                    offset: const Offset(0, 6),
+                  ),
+                ]
+              : [],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              height: 1.5.h,
+              width: 1.5.h,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected ? Colors.white : Colors.black.withOpacity(0.06),
+                border: Border.all(
+                  color: selected ? Colors.white : Colors.black.withOpacity(0.25),
+                  width: 0.1.h,
+                ),
+              ),
+              child: selected ? Icon(Icons.check, size: 1.h, color: Growkids.purpleFlo) : const SizedBox.shrink(),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: selected ? Colors.white : Colors.black87,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

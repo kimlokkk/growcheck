@@ -47,6 +47,7 @@ dependencies:
   change_app_package_name: ^1.4.0
   printing: ^5.14.2
   pdf: ^3.11.3
+  file_picker: ^10.3.8
 
 dev_dependencies:
   flutter_test:

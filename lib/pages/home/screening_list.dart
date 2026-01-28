@@ -172,6 +172,7 @@ class _ScreeningListState extends State<ScreeningList> {
                                       context,
                                       MaterialPageRoute(
                                         builder: (BuildContext context) => ScreeningResult(
+                                          screeningDate: displayedData[index]['screening_date'],
                                           studentId: displayedData[index]['student_id'],
                                           screeningId: displayedData[index]['screening_id'],
                                           age: double.parse(displayedData[index]['age']),

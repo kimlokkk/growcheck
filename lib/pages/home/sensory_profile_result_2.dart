@@ -1,10 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:growcheck_app_v2/pages/home/home.dart';
 import 'package:growcheck_app_v2/ui/colour.dart';
 import 'package:http/http.dart' as http;
-import 'package:sizer/sizer.dart';
 import 'package:intl/intl.dart';
+import 'package:sizer/sizer.dart';
 
 class SensoryProfileResult2 extends StatefulWidget {
   final int assessmentId;
@@ -37,6 +36,9 @@ class _SensoryProfileResult2State extends State<SensoryProfileResult2> {
     fetchResultData();
   }
 
+  // =========================
+  // FETCH (SAFE) + DEBUG
+  // =========================
   Future<void> fetchResultData() async {
     try {
       final response = await http.post(
@@ -48,15 +50,31 @@ class _SensoryProfileResult2State extends State<SensoryProfileResult2> {
       if (!mounted) return;
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data is Map && (data['status'] == 'success' || data['assessment_date'] != null)) {
-          setState(() {
-            resultData = Map<String, dynamic>.from(data);
-            isLoading = false;
-          });
+        final decoded = json.decode(response.body);
+
+        if (decoded is Map) {
+          final map = Map<String, dynamic>.from(decoded);
+
+          final ok = (map['status']?.toString().toLowerCase() == 'success') ||
+              map.containsKey('results') ||
+              map.containsKey('answers') ||
+              map.containsKey('category_summary');
+
+          if (ok) {
+            setState(() {
+              resultData = map;
+              isLoading = false;
+              errorMsg = null;
+            });
+          } else {
+            setState(() {
+              errorMsg = (map['message'] != null) ? map['message'].toString() : 'Unable to load result.';
+              isLoading = false;
+            });
+          }
         } else {
           setState(() {
-            errorMsg = (data is Map && data['message'] != null) ? '${data['message']}' : 'Unable to load result.';
+            errorMsg = 'Invalid response format.';
             isLoading = false;
           });
         }
@@ -73,214 +91,443 @@ class _SensoryProfileResult2State extends State<SensoryProfileResult2> {
         isLoading = false;
       });
     }
+
+    // Debug (kau boleh buang bila dah ok)
+    debugPrint('RESULT KEYS: ${resultData.keys}');
+    debugPrint('RESULTS TYPE: ${resultData['results']?.runtimeType}');
+    debugPrint('ANSWERS LENGTH: ${answers.length}');
   }
 
-  // --- UTIL: warna ikut band ---
+  // =========================
+  // SAFE GETTERS
+  // =========================
+  Map<String, dynamic> get _resultsMap {
+    final r = resultData['results'];
+    if (r is Map) return Map<String, dynamic>.from(r);
+    return <String, dynamic>{};
+  }
+
+  Map<String, dynamic> get _categorySummary {
+    // Endpoint SSP2: category_summary kat root (contoh JSON kau bagi)
+    final root = resultData['category_summary'];
+    if (root is Map) return Map<String, dynamic>.from(root);
+
+    // fallback kalau letak dalam results
+    final inResults = _resultsMap['category_summary'];
+    if (inResults is Map) return Map<String, dynamic>.from(inResults);
+
+    // fallback lain
+    final raw = _resultsMap['category_raw_score'];
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+
+    return <String, dynamic>{};
+  }
+
+  List<Map<String, dynamic>> get answers {
+    if (resultData.isEmpty) return [];
+
+    // ✅ CASE UTAMA (based on JSON kau bagi): answers dalam results.answers
+    final res = resultData['results'];
+    if (res is Map && res['answers'] is List) {
+      final List raw = res['answers'];
+      return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    }
+
+    // fallback: answers di root
+    if (resultData['answers'] is List) {
+      final List raw = resultData['answers'];
+      return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    }
+
+    return [];
+  }
+
+  // =========================
+  // UTILS
+  // =========================
+  String _formatDateSafe(dynamic raw) {
+    try {
+      return DateFormat('d MMMM yyyy').format(DateTime.parse(raw.toString()));
+    } catch (_) {
+      return raw?.toString() ?? '-';
+    }
+  }
+
+  String _safeStr(dynamic v, [String fallback = '-']) {
+    if (v == null) return fallback;
+    final s = v.toString().trim();
+    return s.isEmpty ? fallback : s;
+  }
+
+  num _safeNum(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v;
+    return num.tryParse(v.toString()) ?? 0;
+  }
+
   Color _bandColor(String band) {
     final b = band.toLowerCase();
     if (b.contains('definite')) return Colors.red;
     if (b.contains('probable')) return Colors.orange;
     if (b.contains('typical')) return Colors.green;
-    return Growkids.purple; // fallback
+    return Growkids.purple;
   }
 
-  /// =========================
-  /// SAFE GETTERS & GROUPING
-  /// =========================
-
-  /// Try multiple keys for a string value; return '' if missing
-  String _readStr(Map m, List<String> keys) {
-    for (final k in keys) {
-      if (m.containsKey(k) && m[k] != null) {
-        final v = m[k];
-        if (v is String) return v;
-        return v.toString();
-      }
-    }
-    return '';
-  }
-
-  /// Try multiple keys for an int/double (score/value); return null if missing
-  num? _readNum(Map m, List<String> keys) {
-    for (final k in keys) {
-      if (m.containsKey(k) && m[k] != null) {
-        final v = m[k];
-        if (v is num) return v;
-        if (v is String) {
-          final parsed = num.tryParse(v);
-          if (parsed != null) return parsed;
-        }
-      }
-    }
-    return null;
-  }
-
-  /// If score exists, use it as the displayed answer; else fall back to label or 'No answer'
-  String _formatAnswerLabel(String label, num? value) {
-    if (value != null) {
-      final isInt = value == value.roundToDouble();
-      return isInt ? value.toInt().toString() : value.toString();
-    }
-    return label.trim().isNotEmpty ? label : 'No answer';
-  }
-
-  /// Normalize any dynamic `answers` payload to a clean List<Map<String, dynamic>>
-  List<Map<String, dynamic>> _extractAnswers(Map<String, dynamic> rd) {
-    final results = rd['results'] is Map ? Map<String, dynamic>.from(rd['results']) : const <String, dynamic>{};
-
-    final dynamic raw = (results['answers'] is List)
-        ? results['answers']
-        : (rd['answers'] is List)
-            ? rd['answers']
-            : const [];
-
-    final List<Map<String, dynamic>> out = [];
-    if (raw is List) {
-      for (final item in raw) {
-        if (item is Map) {
-          out.add(item.cast<String, dynamic>());
-        }
-      }
-    }
-    return out;
-  }
-
-  /// Group answers by category following `sspOrder` first, then any leftovers
-  Map<String, List<Map<String, dynamic>>> _groupByCategory(
-    List<dynamic> answersDyn,
-    List<String> sspOrder,
-  ) {
+  // =========================
+  // GROUPING (Questions)
+  // =========================
+  Map<String, List<Map<String, dynamic>>> groupByCategory() {
     final Map<String, List<Map<String, dynamic>>> grouped = {};
 
-    for (final a in answersDyn) {
-      if (a is! Map) continue;
-      final am = a.cast<String, dynamic>();
+    for (final q in answers) {
+      final cat = (q['category'] ?? q['category_name'] ?? 'Uncategorized').toString();
 
-      final cat = _readStr(am, ['category', 'category_name', 'cat', 'section']).isEmpty
-          ? 'Uncategorized'
-          : _readStr(am, ['category', 'category_name', 'cat', 'section']);
-
-      (grouped[cat] ??= []).add(am);
+      grouped.putIfAbsent(cat, () => []);
+      grouped[cat]!.add(q);
     }
 
-    for (final entry in grouped.entries) {
-      entry.value.sort((x, y) {
-        final xi = _readNum(x, ['question_id', 'qid', 'id']) ?? 0;
-        final yi = _readNum(y, ['question_id', 'qid', 'id']) ?? 0;
-        return xi.compareTo(yi);
-      });
-    }
-
-    final Map<String, List<Map<String, dynamic>>> ordered = {};
+    // susun ikut sspOrder dulu, then baki
+    final ordered = <String, List<Map<String, dynamic>>>{};
     for (final cat in sspOrder) {
       if (grouped.containsKey(cat)) ordered[cat] = grouped.remove(cat)!;
     }
-    for (final entry in grouped.entries) {
-      ordered[entry.key] = entry.value;
+    final leftovers = grouped.keys.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    for (final k in leftovers) {
+      ordered[k] = grouped[k]!;
     }
+
     return ordered;
   }
 
-  /// Compact badge for an answer label/value
-  Widget _answerChip(String label) {
+  // =========================
+  // PREMIUM UI ATOMS
+  // =========================
+  Widget _glassCard({required Widget child, EdgeInsets? padding}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: padding ?? EdgeInsets.all(2.h),
       decoration: BoxDecoration(
-        color: Growkids.purple.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Growkids.purple.withOpacity(0.35)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 16, offset: const Offset(0, 8)),
+        ],
       ),
-      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+      child: child,
     );
   }
 
-  /// ===============================
-  /// QUESTIONS & ANSWERS (UI PART)
-  /// ===============================
-  Widget buildQuestionsAndAnswersSection(
-    Map<String, dynamic> rd,
-    List<String> sspOrder,
-  ) {
-    final answers = _extractAnswers(rd);
-    if (answers.isEmpty) {
-      return const SizedBox.shrink();
-    }
+  Widget _pill({required String text, required Color bg, required Color fg, IconData? icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: fg.withOpacity(0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: fg),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            text,
+            style: TextStyle(color: fg, fontSize: 12.sp),
+          ),
+        ],
+      ),
+    );
+  }
 
-    final grouped = _groupByCategory(answers, sspOrder);
+  // =========================
+  // UI: HERO HEADER (PURPLEFLOW)
+  // =========================
+  Widget _heroHeader() {
+    final dateText = _formatDateSafe(resultData['assessment_date']);
+    final age = _safeStr(resultData['age'], '-');
+
+    final totalScore = _safeStr(resultData['total_score'], '0');
+    final totalBand = _safeStr(resultData['total_band'], '');
+    final totalRange = _safeStr(resultData['total_band_range'], '');
+
+    final bandColor = _bandColor(totalBand);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(2.2.h),
+      decoration: BoxDecoration(
+        color: Growkids.purpleFlo,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.10),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 4.h,
+            backgroundColor: Colors.white,
+            child: Icon(Icons.psychology_rounded, color: Growkids.purple, size: 3.2.h),
+          ),
+          SizedBox(width: 3.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sensory Profile Result',
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: 0.5.h),
+                Text(
+                  'Age: $age months • $dateText',
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: Colors.white.withOpacity(0.85),
+                  ),
+                ),
+                SizedBox(height: 1.2.h),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _pill(
+                      text: 'Total Score: $totalScore',
+                      bg: Colors.white.withOpacity(0.14),
+                      fg: Colors.white,
+                      icon: Icons.bar_chart_rounded,
+                    ),
+                    if (totalBand.trim().isNotEmpty)
+                      _pill(
+                        text: totalRange.trim().isNotEmpty ? '$totalBand ($totalRange)' : totalBand,
+                        bg: bandColor.withOpacity(0.20),
+                        fg: Colors.white,
+                        icon: Icons.verified_rounded,
+                      ),
+                  ],
+                )
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  // =========================
+  // UI: CATEGORY SUMMARY (WHITE CARDS)
+  // =========================
+  Widget _categorySummarySection() {
+    final summary = _categorySummary;
+
+    return _glassCard(
+      padding: EdgeInsets.all(2.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Category Summary',
+              style: TextStyle(
+                fontSize: 14.sp,
+              )),
+          SizedBox(height: 1.4.h),
+          if (summary.isEmpty)
+            Text(
+              'Category summary not available.',
+              style: TextStyle(fontSize: 12.sp, color: Colors.black.withOpacity(0.65), fontWeight: FontWeight.w600),
+            )
+          else
+            ...sspOrder.map((cat) {
+              if (!summary.containsKey(cat)) return const SizedBox.shrink();
+
+              final raw = summary[cat];
+              if (raw is! Map) return const SizedBox.shrink();
+              final data = Map<String, dynamic>.from(raw);
+
+              final total = _safeNum(data['total']).toInt();
+              final count = _safeNum(data['count']).toInt();
+              final band = _safeStr(data['band'], '-');
+              final range = _safeStr(data['range'], '');
+              final color = _bandColor(band);
+
+              return Container(
+                margin: EdgeInsets.only(bottom: 1.2.h),
+                padding: EdgeInsets.all(1.8.h),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: color.withOpacity(0.25)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(cat,
+                              style: TextStyle(
+                                fontSize: 14.sp,
+                              )),
+                          SizedBox(height: 0.7.h),
+                          _pill(
+                            text: range.isNotEmpty ? '$band ($range)' : band,
+                            bg: color.withOpacity(0.12),
+                            fg: color,
+                            icon: Icons.flag_rounded,
+                          ),
+                          SizedBox(height: 0.7.h),
+                          Text(
+                            'Items: $count',
+                            style: TextStyle(fontSize: 12.sp, color: Colors.black.withOpacity(0.6)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Growkids.purple.withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Growkids.purple.withOpacity(0.12)),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Score', style: TextStyle(fontSize: 12.sp, color: Colors.black.withOpacity(0.55))),
+                          SizedBox(height: 0.4.h),
+                          Text(
+                            '$total',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+        ],
+      ),
+    );
+  }
+
+  // =========================
+  // UI: QUESTIONS (White cards, Expansion)
+  // =========================
+  Widget _questionsSection() {
+    final grouped = groupByCategory();
+
+    if (grouped.isEmpty) {
+      return _glassCard(
+        child: Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: Colors.black.withOpacity(0.55)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'No questions available.',
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  color: Colors.black.withOpacity(0.65),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Questions & Answers', style: TextStyle(fontWeight: FontWeight.bold)),
-        SizedBox(height: 1.h),
+        Text('Questions & Answers', style: TextStyle(fontSize: 14.sp)),
+        SizedBox(height: 1.2.h),
         ...grouped.entries.map((entry) {
           final cat = entry.key;
           final items = entry.value;
 
           return Container(
-            margin: EdgeInsets.only(bottom: 1.2.h),
+            margin: EdgeInsets.only(bottom: 1.4.h),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-              border: Border.all(color: Colors.black12),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.black.withOpacity(0.06)),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 8)),
+              ],
             ),
-            child: Theme(
-              data: ThemeData().copyWith(dividerColor: Colors.transparent),
-              child: ExpansionTile(
-                tilePadding: EdgeInsets.symmetric(horizontal: 2.2.h, vertical: 0.6.h),
-                childrenPadding: EdgeInsets.fromLTRB(2.2.h, 0, 2.2.h, 1.6.h),
-                title: Text(cat, style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text('${items.length} item(s)'),
-                initiallyExpanded: false,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                children: items.map((q) {
-                  final qText = _readStr(q, ['question_text', 'question', 'text', 'q']);
-                  final aLabel = _readStr(q, [
-                    'answer_label',
-                    'answer_text',
-                    'answer',
-                    'response',
-                    'selected',
-                    'selected_option',
-                    'selected_label',
-                    'option_text',
-                    'choice_label',
-                  ]);
-                  final aValue = _readNum(q, ['value', 'score', 'points']); // score IS the answer
-                  final isRev = (_readNum(q, ['reverse', 'is_reverse']) ?? 0) == 1;
-
-                  final display = _formatAnswerLabel(aLabel, aValue);
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.black12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(qText.isEmpty ? '—' : qText, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            _answerChip(display),
-                            if (isRev) ...[
-                              const SizedBox(width: 8),
-                              const Text('(Reverse scored)',
-                                  style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.symmetric(horizontal: 2.h, vertical: 1.h),
+              childrenPadding: EdgeInsets.fromLTRB(2.h, 0, 2.h, 1.6.h),
+              title: Text(
+                cat,
+                style: TextStyle(
+                  fontSize: 14.sp,
+                ),
               ),
+              subtitle: Text(
+                '${items.length} item(s)',
+                style: TextStyle(fontSize: 12.sp),
+              ),
+              children: items.map((q) {
+                final qText = _safeStr(q['question_text'], '-');
+                final score = _safeNum(q['score']).toInt();
+                final quad = _safeStr(q['quadrant'], '');
+
+                return Container(
+                  width: double.infinity,
+                  margin: EdgeInsets.only(bottom: 1.2.h),
+                  padding: EdgeInsets.all(1.6.h),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.black.withOpacity(0.06)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        qText,
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black.withOpacity(0.88),
+                        ),
+                      ),
+                      SizedBox(height: 1.h),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _pill(
+                            text: 'Score: $score',
+                            bg: Growkids.purple.withOpacity(0.10),
+                            fg: Growkids.purple,
+                            icon: Icons.bar_chart_rounded,
+                          ),
+                          if (quad.trim().isNotEmpty && quad.trim().toLowerCase() != 'no quadrant')
+                            _pill(
+                              text: quad,
+                              bg: Colors.black.withOpacity(0.06),
+                              fg: Colors.black87,
+                              icon: Icons.layers_rounded,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
           );
         }),
@@ -288,168 +535,23 @@ class _SensoryProfileResult2State extends State<SensoryProfileResult2> {
     );
   }
 
-  /// Summary (Date + Total Score/Band)
-  Widget buildSummaryCard() {
-    final rawDate = resultData['assessment_date'] ?? '';
-    String formattedDate = '';
-    try {
-      final date = DateTime.parse(rawDate);
-      formattedDate = DateFormat('d MMM y').format(date);
-    } catch (_) {
-      formattedDate = rawDate.toString();
-    }
-
-    final totalScore = resultData['total_score'] ?? 0;
-    final totalBand = (resultData['total_band'] ?? '') as String;
-    final totalRange = (resultData['total_band_range'] ?? '') as String;
-
-    return Column(
-      children: [
-        // Date card
-        Container(
-          padding: EdgeInsets.all(2.h),
-          decoration: BoxDecoration(
-            color: Growkids.purple,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: GrowkidsPastel.purple,
-                child: const Icon(Icons.calendar_today, color: Growkids.purple),
-              ),
-              SizedBox(width: 3.w),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Date', style: TextStyle(color: Colors.white)),
-                  ],
-                ),
-              ),
-              Text(formattedDate, style: const TextStyle(color: Colors.white)),
-            ],
-          ),
-        ),
-        SizedBox(height: 1.h),
-        // Total card (score + band)
-        Container(
-          padding: EdgeInsets.all(2.h),
-          decoration: BoxDecoration(
-            color: Growkids.pink,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: GrowkidsPastel.pink,
-                child: const Icon(Icons.bar_chart_rounded, color: Growkids.pink),
-              ),
-              SizedBox(width: 3.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Total Score', style: TextStyle(color: Colors.white)),
-                    Text('$totalScore', style: TextStyle(color: Colors.white, fontSize: 18.sp)),
-                    if (totalBand.isNotEmpty) const SizedBox(height: 4),
-                    if (totalBand.isNotEmpty)
-                      Text(
-                        'Band: $totalBand${totalRange.isNotEmpty ? " ($totalRange)" : ""}',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: 1.h),
-      ],
-    );
-  }
-
-  Widget buildCategorySummary(Map<String, dynamic> categorySummary) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: sspOrder.map((cat) {
-        if (!categorySummary.containsKey(cat)) {
-          return const SizedBox.shrink();
-        }
-        final raw = categorySummary[cat];
-        if (raw is! Map) return const SizedBox.shrink();
-        final data = Map<String, dynamic>.from(raw as Map);
-
-        final total = data['total'] ?? 0;
-        final count = data['count'] ?? 0;
-        final band = (data['band'] ?? '-') as String;
-        final range = (data['range'] ?? '') as String;
-        final bandColor = _bandColor(band);
-
-        return Container(
-          margin: EdgeInsets.only(bottom: 1.5.h),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: bandColor.withOpacity(0.35)),
-            boxShadow: const [
-              BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
-            ],
-          ),
-          child: ListTile(
-            title: Text(cat, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 6.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Badge with the band text and optional range
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: bandColor.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: bandColor.withOpacity(0.6)),
-                    ),
-                    child: Text(
-                      range.isNotEmpty ? '$band ($range)' : band,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text('Items: $count'),
-                ],
-              ),
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Growkids.purple.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'Score: $total',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
+  // =========================
+  // BUILD (WHITE BG, PURPLEFLOW APPBAR)
+  // =========================
   @override
   Widget build(BuildContext context) {
-    final Map<String, dynamic> categorySummary = (resultData['category_summary'] is Map)
-        ? Map<String, dynamic>.from(resultData['category_summary'])
-        : <String, dynamic>{};
-
     return Scaffold(
+      backgroundColor: Colors.white, // ✅ putih
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        title: const Text('Sensory Result', style: TextStyle(color: Growkids.purple)),
-        centerTitle: true,
-        leading: const BackButton(color: Growkids.purple),
+        backgroundColor: Growkids.purpleFlo, // ✅ purpleFlo
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Sensory Profile',
+          style: TextStyle(
+            color: Colors.white,
+          ),
+        ),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -457,38 +559,36 @@ class _SensoryProfileResult2State extends State<SensoryProfileResult2> {
               ? Center(
                   child: Padding(
                     padding: EdgeInsets.all(4.w),
-                    child: Text(errorMsg!, textAlign: TextAlign.center),
+                    child: _glassCard(
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, color: Colors.red.withOpacity(0.9)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              errorMsg!,
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 )
-              : Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(3.w),
-                  decoration: const BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage('assets/bg-home.jpg'),
-                      fit: BoxFit.fill,
-                      colorFilter: ColorFilter.mode(Growkids.purple, BlendMode.color),
-                    ),
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // --- Summary (Date + Total) ---
-                        buildSummaryCard(),
-
-                        // --- Category Summary ---
-                        const Text('Category Summary', style: TextStyle(fontWeight: FontWeight.bold)),
-                        SizedBox(height: 1.h),
-                        buildCategorySummary(categorySummary),
-                        SizedBox(height: 2.h),
-
-                        // --- Questions & Answers (score is the answer) ---
-                        buildQuestionsAndAnswersSection(resultData, sspOrder),
-
-                        SizedBox(height: 5.h),
-                      ],
-                    ),
+              : SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(2.h, 2.h, 2.h, 3.h),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _heroHeader(), // ✅ purpleFlo full card
+                      SizedBox(height: 1.6.h),
+                      _categorySummarySection(), // ✅ putih card
+                      SizedBox(height: 2.h),
+                      _questionsSection(), // ✅ putih cards + expansion
+                      SizedBox(height: 2.h),
+                    ],
                   ),
                 ),
     );

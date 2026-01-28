@@ -27,48 +27,25 @@ class ProfileStudent extends StatefulWidget {
 
 class _ProfileStudentState extends State<ProfileStudent> {
   Map<String, dynamic> profileData = {};
-  Map<String, dynamic> screeningData = {};
-  bool isLoading = false; // Added for loading indicator
+  bool loading = true;
 
   @override
   void initState() {
     super.initState();
-    fetchData();
-    fetchScreeningData();
+    _fetchProfile();
   }
 
-  Future<void> fetchData() async {
-    setState(() {
-      isLoading = true; // Set isLoading to true when data fetching starts
-    });
-    final response = await http.post(
+  Future<void> _fetchProfile() async {
+    final res = await http.post(
       Uri.parse('https://app.kizzukids.com.my/growkids/flutter/student_profile.php'),
       body: {'stud_id': widget.studentId},
     );
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
       setState(() {
         profileData = data.isNotEmpty ? data[0] : {};
-        isLoading = false; // Data has been fetched, no longer loading
-      });
-    }
-  }
-
-  Future<void> fetchScreeningData() async {
-    setState(() {
-      isLoading = true; // Set isLoading to true when data fetching starts
-    });
-    final response = await http.post(
-      Uri.parse('https://app.kizzukids.com.my/growkids/flutter/check_screening_data.php'),
-      body: {'stud_id': widget.studentId},
-    );
-
-    if (response.statusCode == 200) {
-      final data2 = jsonDecode(response.body);
-      setState(() {
-        screeningData = data2.isNotEmpty ? data2[0] : {};
-        isLoading = false; // Data has been fetched, no longer loading
+        loading = false;
       });
     }
   }
@@ -76,576 +53,193 @@ class _ProfileStudentState extends State<ProfileStudent> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF6F7FB),
       appBar: AppBar(
-        title: const Text('Student\'s Profile'),
+        title: const Text('Student Profile'),
+        backgroundColor: Growkids.purpleFlo,
+        foregroundColor: Colors.white,
         centerTitle: true,
-        backgroundColor: Colors.white,
       ),
-      body: profileData['stud_name'] == null
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
-          : SingleChildScrollView(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage('assets/bg-home.jpg'),
-                    fit: BoxFit.cover,
-                    colorFilter: ColorFilter.mode(
-                      Growkids.purple, // The color and opacity to apply to the image
-                      BlendMode.color, // The blending mode to apply the color filter
-                    ),
-                  ),
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: EdgeInsets.all(2.h),
+              children: [
+                _profileHeader(),
+                SizedBox(height: 2.h),
+                _section(
+                  title: 'Student Information',
+                  icon: Icons.person_outline_rounded,
+                  children: [
+                    _row('Date of Birth', DateFormat('d MMM yyyy').format(DateTime.parse(profileData['stud_dob']))),
+                    _row('Age', widget.age),
+                    _row('Age (Months)', widget.ageInMonths),
+                    _row('Gender', profileData['stud_sex']),
+                    _row('Religion', profileData['stud_religion']),
+                    _row('Race', profileData['stud_race']),
+                    _row('Address', profileData['stud_address']),
+                    _row('Email', profileData['stud_email']),
+                  ],
                 ),
-                child: Padding(
-                  padding: EdgeInsets.all(3.h),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(3.h),
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Growkids.purple,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              profileData['stud_name'],
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 20.sp,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        height: 2.h,
-                      ),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Container(
-                          width: double.infinity,
-                          decoration: const BoxDecoration(
-                            color: Growkids.purple,
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(20),
-                              topRight: Radius.circular(20),
-                            ),
-                          ),
-                          padding: EdgeInsets.all(1.h),
-                          child: Text(
-                            'Student\'s Info',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18.sp,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        alignment: Alignment.centerLeft,
-                        width: double.infinity,
-                        padding: EdgeInsets.all(2.h),
-                        decoration: const BoxDecoration(
-                          color: GrowkidsPastel.purple,
-                          borderRadius: BorderRadius.only(
-                            bottomLeft: Radius.circular(20),
-                            bottomRight: Radius.circular(20),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Date of Birth',
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                                color: Growkids.purple,
-                              ),
-                            ),
-                            Text(
-                              DateFormat('d MMMM yyyy').format(
-                                DateTime.parse(profileData['stud_dob']),
-                              ),
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Place of Birth',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_pob'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Age',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              widget.age,
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Age In Months',
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                                color: Growkids.purple,
-                              ),
-                            ),
-                            Text(
-                              widget.ageInMonths,
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Concern',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_concern'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Hope',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_hope'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Gender',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_sex'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Religion',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_religion'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Race',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_race'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Address',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_address'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Email Address',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_email'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Date Register',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              DateFormat('d MMMM yyyy').format(DateTime.parse(profileData['stud_date_register'])),
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        height: 2.h,
-                      ),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Container(
-                          width: double.infinity,
-                          decoration: const BoxDecoration(
-                            color: Growkids.purple,
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(20),
-                              topRight: Radius.circular(20),
-                            ),
-                          ),
-                          padding: EdgeInsets.all(1.h),
-                          child: Text(
-                            'Health & Medication Info',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18.sp,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        alignment: Alignment.centerLeft,
-                        width: double.infinity,
-                        padding: EdgeInsets.all(2.h),
-                        decoration: const BoxDecoration(
-                          color: GrowkidsPastel.purple,
-                          borderRadius: BorderRadius.only(
-                            bottomLeft: Radius.circular(20),
-                            bottomRight: Radius.circular(20),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Method of Pregnancy',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_method_pregnant'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Complication',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_complication'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Check Up Information',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_checkup'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Health Issue',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_health'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Audio & Visual Issue',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_visual_audio'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Language used at home',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_language'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Usage of Gadget',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_gadget'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        height: 2.h,
-                      ),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Container(
-                          width: double.infinity,
-                          decoration: const BoxDecoration(
-                            color: Growkids.purple,
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(20),
-                              topRight: Radius.circular(20),
-                            ),
-                          ),
-                          padding: EdgeInsets.all(1.h),
-                          child: Text(
-                            'Parent Info',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18.sp,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        alignment: Alignment.centerLeft,
-                        width: double.infinity,
-                        padding: EdgeInsets.all(2.h),
-                        decoration: const BoxDecoration(
-                          color: GrowkidsPastel.purple,
-                          borderRadius: BorderRadius.only(
-                            bottomLeft: Radius.circular(20),
-                            bottomRight: Radius.circular(20),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Father\'s Name',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_father_name'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Father\'s Occupation',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_father_occu'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Father\'s Contact',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_father_contact'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Mother\'s Name',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_mother_name'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Mother\'s Occupation',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_mother_occu'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            Text(
-                              'Mother\'s Contact',
-                              style: TextStyle(
-                                color: Growkids.purple,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                            Text(
-                              profileData['stud_mother_contact'],
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                SizedBox(height: 2.h),
+                _section(
+                  title: 'Student Concern & Hope',
+                  icon: Icons.priority_high,
+                  children: [
+                    _row('Concern', profileData['stud_concern']),
+                    _row('Hope', profileData['stud_hope']),
+                  ],
                 ),
+                SizedBox(height: 2.h),
+                _section(
+                  title: 'Health & Development',
+                  icon: Icons.health_and_safety_outlined,
+                  children: [
+                    _row('Pregnancy Method', profileData['stud_method_pregnant']),
+                    _row('Complication', profileData['stud_complication']),
+                    _row('Medical Checkup', profileData['stud_checkup']),
+                    _row('Health Issue', profileData['stud_health']),
+                    _row('Visual / Audio Issue', profileData['stud_visual_audio']),
+                    _row('Home Language', profileData['stud_language']),
+                    _row('Gadget Usage', profileData['stud_gadget']),
+                  ],
+                ),
+                SizedBox(height: 2.h),
+                _section(
+                  title: 'Parent Information',
+                  icon: Icons.family_restroom_outlined,
+                  children: [
+                    _row('Father Name', profileData['stud_father_name']),
+                    _row('Father Occupation', profileData['stud_father_occu']),
+                    _row('Father Contact', profileData['stud_father_contact']),
+                    const Divider(height: 24),
+                    _row('Mother Name', profileData['stud_mother_name']),
+                    _row('Mother Occupation', profileData['stud_mother_occu']),
+                    _row('Mother Contact', profileData['stud_mother_contact']),
+                  ],
+                ),
+              ],
+            ),
+    );
+  }
+
+  // =========================
+  // UI COMPONENTS
+  // =========================
+
+  Widget _profileHeader() {
+    return Container(
+      padding: EdgeInsets.all(2.h),
+      decoration: BoxDecoration(
+        color: Growkids.purpleFlo,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 10)),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 4.h,
+            backgroundColor: Colors.white,
+            child: Text(
+              widget.studentName.isNotEmpty ? widget.studentName[0].toUpperCase() : '?',
+              style: TextStyle(
+                color: Growkids.purpleFlo,
+                fontSize: 20.sp,
               ),
             ),
+          ),
+          SizedBox(width: 4.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.studentName,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18.sp,
+                  ),
+                ),
+                Text(
+                  '${widget.age} • ${widget.ageInMonths}',
+                  style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 14.sp),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _section({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(2.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                color: Growkids.purpleFlo,
+                size: 3.h,
+              ),
+              SizedBox(width: 1.w),
+              Text(title,
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                  )),
+            ],
+          ),
+          SizedBox(height: 2.h),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _row(String label, String? value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 4,
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 14.sp, color: Colors.black.withOpacity(0.6)),
+            ),
+          ),
+          Expanded(
+            flex: 6,
+            child: Text(
+              value?.isNotEmpty == true ? value! : '-',
+              style: TextStyle(
+                fontSize: 14.sp,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

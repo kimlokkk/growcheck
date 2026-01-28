@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:growcheck_app_v2/pages/home/home.dart';
+import 'package:growcheck_app_v2/pages/home/home_v2.dart';
 import 'package:growcheck_app_v2/ui/colour.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 class TherapistSuggestion extends StatefulWidget {
@@ -36,29 +37,29 @@ class _TherapistSuggestionState extends State<TherapistSuggestion> {
   List<Map<String, dynamic>> recommendationData = [];
   List<Map<String, dynamic>> interventionPlan = [];
   bool isLoading = true;
+  bool isSubmitting = false;
 
-  // Peta untuk menjejak status checkbox bagi setiap kategori
+  // Track checkbox status
   Map<dynamic, bool> selectedSuggestions = {};
   Map<dynamic, bool> selectedRecommendations = {};
   Map<dynamic, bool> selectedInterventions = {};
+
+  // Stepper style macam Screening
+  int currentStep = 0;
+
+  // 0=Suggestions, 1=Recommendations, 2=Interventions
+  List<String> get stepLabels => const ['Suggestions', 'Recommendations', 'Interventions'];
 
   Future<void> fetchSuggestionData() async {
     final response = await http.post(Uri.parse('https://app.kizzukids.com.my/growkids/flutter/fetch_suggestion.php'));
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
-      setState(() {
-        isLoading = false;
-        suggestionData = List<Map<String, dynamic>>.from(data);
-        // Inisialisasi peta untuk suggestion
-        for (var suggestion in suggestionData) {
-          selectedSuggestions[suggestion['id']] = false;
-        }
-      });
+      suggestionData = List<Map<String, dynamic>>.from(data);
+      for (var s in suggestionData) {
+        selectedSuggestions[s['id']] = selectedSuggestions[s['id']] ?? false;
+      }
     } else {
-      setState(() {
-        isLoading = false;
-      });
       throw Exception('Failed to load suggestion data');
     }
   }
@@ -69,13 +70,10 @@ class _TherapistSuggestionState extends State<TherapistSuggestion> {
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
-      setState(() {
-        recommendationData = List<Map<String, dynamic>>.from(data);
-        // Inisialisasi peta untuk recommendation
-        for (var recommendation in recommendationData) {
-          selectedRecommendations[recommendation['id']] = false;
-        }
-      });
+      recommendationData = List<Map<String, dynamic>>.from(data);
+      for (var r in recommendationData) {
+        selectedRecommendations[r['id']] = selectedRecommendations[r['id']] ?? false;
+      }
     } else {
       throw Exception('Failed to load recommendation data');
     }
@@ -86,45 +84,34 @@ class _TherapistSuggestionState extends State<TherapistSuggestion> {
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
-      setState(() {
-        interventionPlan = List<Map<String, dynamic>>.from(data);
-        // Inisialisasi peta untuk intervention plan
-        for (var plan in interventionPlan) {
-          selectedInterventions[plan['id']] = false;
-        }
-      });
+      interventionPlan = List<Map<String, dynamic>>.from(data);
+      for (var p in interventionPlan) {
+        selectedInterventions[p['id']] = selectedInterventions[p['id']] ?? false;
+      }
     } else {
       throw Exception('Failed to load intervention plan');
     }
   }
 
-  // Fungsi untuk mengumpul dan menghantar semua data yang dipilih ke server
+  // Submit all data (kekal logic kau)
   Future<void> submitAllData() async {
-    // Kumpul data suggestion
+    if (isSubmitting) return;
+
+    setState(() => isSubmitting = true);
+
     List selectedSuggestionsList = suggestionData
         .where((item) => selectedSuggestions[item['id']] == true)
-        .map((item) => {
-              'id': item['id'],
-              'suggestion': item['suggestion'],
-            })
+        .map((item) => {'id': item['id'], 'suggestion': item['suggestion']})
         .toList();
 
-    // Kumpul data recommendation
     List selectedRecommendationsList = recommendationData
         .where((item) => selectedRecommendations[item['id']] == true)
-        .map((item) => {
-              'id': item['id'],
-              'recommendation': item['recommendation'],
-            })
+        .map((item) => {'id': item['id'], 'recommendation': item['recommendation']})
         .toList();
 
-    // Kumpul data intervention plan (hanya tajuk sahaja)
     List selectedInterventionsList = interventionPlan
         .where((item) => selectedInterventions[item['id']] == true)
-        .map((item) => {
-              'id': item['id'],
-              'title': item['title'],
-            })
+        .map((item) => {'id': item['id'], 'title': item['title']})
         .toList();
 
     final response = await http.post(
@@ -138,6 +125,8 @@ class _TherapistSuggestionState extends State<TherapistSuggestion> {
       },
     );
 
+    setState(() => isSubmitting = false);
+
     String message = "";
     String title = "";
 
@@ -150,7 +139,6 @@ class _TherapistSuggestionState extends State<TherapistSuggestion> {
       title = "Submission Error";
     }
 
-    // Display an AlertDialog with the message from PHP
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -160,12 +148,7 @@ class _TherapistSuggestionState extends State<TherapistSuggestion> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const Home(),
-                  ),
-                );
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const HomeV2()));
               },
               child: const Text("OK"),
             ),
@@ -178,323 +161,524 @@ class _TherapistSuggestionState extends State<TherapistSuggestion> {
   @override
   void initState() {
     super.initState();
-    fetchSuggestionData();
-    fetchRecommendationData();
-    fetchInterventionPlan();
+    _loadAll();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Therapist Suggestion'),
-        backgroundColor: Colors.white,
+  Future<void> _loadAll() async {
+    setState(() => isLoading = true);
+    try {
+      await Future.wait([
+        fetchSuggestionData(),
+        fetchRecommendationData(),
+        fetchInterventionPlan(),
+      ]);
+    } catch (_) {
+      // ignore for now
+    }
+    if (!mounted) return;
+    setState(() => isLoading = false);
+  }
+
+  // ======================
+  // Helpers
+  // ======================
+
+  int _countSelected(Map<dynamic, bool> map) => map.values.where((v) => v == true).length;
+
+  int get sugCount => _countSelected(selectedSuggestions);
+  int get recCount => _countSelected(selectedRecommendations);
+  int get intCount => _countSelected(selectedInterventions);
+
+  bool get isLastStep => currentStep == stepLabels.length - 1;
+
+  void _goBack() {
+    if (currentStep > 0) setState(() => currentStep--);
+  }
+
+  void _goNext() {
+    if (!isLastStep) setState(() => currentStep++);
+  }
+
+  Color _stepAccent(int step) {
+    if (step == 0) return Growkids.purpleFlo;
+    if (step == 1) return Growkids.pink;
+    return const Color(0xFF0AAE7A);
+  }
+
+  String _stepSubtitle(int step) {
+    if (step == 0) return 'Pick therapist notes for the report';
+    if (step == 1) return 'Choose recommended next actions';
+    return 'Choose intervention plan titles';
+  }
+
+  int _activeSelectedCount() {
+    if (currentStep == 0) return sugCount;
+    if (currentStep == 1) return recCount;
+    return intCount;
+  }
+
+  // ======================
+  // UI blocks (ikut Screening style)
+  // ======================
+
+  Widget _premiumHeader() {
+    return Container(
+      padding: EdgeInsets.all(2.h),
+      decoration: BoxDecoration(
+        color: Growkids.purpleFlo,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.10),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              // Agar kandungan boleh discroll
-              child: Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(2.h),
-                decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage('assets/bg-home.jpg'),
-                    fit: BoxFit.cover,
-                    colorFilter: ColorFilter.mode(
-                      Growkids.purple,
-                      BlendMode.color,
-                    ),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    // Paparan maklumat pelajar
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.symmetric(vertical: 2.h, horizontal: 2.h),
-                      decoration: BoxDecoration(
-                        color: Growkids.purple.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Column(
-                        children: [
-                          CircleAvatar(
-                            radius: 4.h,
-                            backgroundColor: Colors.white,
-                            child: Text(
-                              widget.studentName.substring(0, 1),
-                              style: TextStyle(
-                                fontSize: 20.sp,
-                                fontWeight: FontWeight.bold,
-                                color: Growkids.purple,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 1.h),
-                          Text(
-                            widget.studentName,
-                            style: TextStyle(fontSize: 18.sp, color: Colors.white),
-                          ),
-                          Text(
-                            "${widget.age} Months",
-                            style: TextStyle(fontSize: 16.sp, color: Colors.white70),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 2.h),
-                    // Paparan grid untuk kemahiran
-                    GridView.count(
-                      crossAxisCount: 4,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 2.h,
-                      crossAxisSpacing: 2.w,
-                      childAspectRatio: (1 / 1),
-                      children: [
-                        _buildCard(
-                          title: "Fine Motor",
-                          devAge: widget.ageFineMotor,
-                        ),
-                        _buildCard(
-                          title: "Gross Motor",
-                          devAge: widget.ageGrossMotor,
-                        ),
-                        _buildCard(
-                          title: "Language",
-                          devAge: widget.ageLanguage,
-                        ),
-                        _buildCard(
-                          title: "Personal Social",
-                          devAge: widget.agePersonal,
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 2.h),
-                    // Bahagian checkbox untuk suggestionData
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Container(
-                            width: double.infinity,
-                            decoration: const BoxDecoration(
-                              color: Growkids.purple,
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(15),
-                                topRight: Radius.circular(15),
-                              ),
-                            ),
-                            padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 2.h),
-                            child: Text(
-                              'Select suggestions:',
-                              style: TextStyle(color: Colors.white, fontSize: 18.sp),
-                              textAlign: TextAlign.left,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 2.h, vertical: 1.h),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: Radius.circular(15),
-                              bottomRight: Radius.circular(15),
-                            ),
-                          ),
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: suggestionData.length,
-                            itemBuilder: (context, index) {
-                              final suggestion = suggestionData[index];
-                              return CheckboxListTile(
-                                title: Text(suggestion['suggestion']),
-                                value: selectedSuggestions[suggestion['id']] ?? false,
-                                onChanged: (bool? value) {
-                                  setState(() {
-                                    selectedSuggestions[suggestion['id']] = value ?? false;
-                                  });
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 2.h),
-                    // Bahagian checkbox untuk recommendationData
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Container(
-                            width: double.infinity,
-                            decoration: const BoxDecoration(
-                              color: Growkids.purple,
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(15),
-                                topRight: Radius.circular(15),
-                              ),
-                            ),
-                            padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 2.h),
-                            child: Text(
-                              'Select recommendations:',
-                              style: TextStyle(color: Colors.white, fontSize: 18.sp),
-                              textAlign: TextAlign.left,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 2.h, vertical: 1.h),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: Radius.circular(15),
-                              bottomRight: Radius.circular(15),
-                            ),
-                          ),
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: recommendationData.length,
-                            itemBuilder: (context, index) {
-                              final recommendation = recommendationData[index];
-                              return CheckboxListTile(
-                                title: Text(recommendation['recommendation']),
-                                value: selectedRecommendations[recommendation['id']] ?? false,
-                                onChanged: (bool? value) {
-                                  setState(() {
-                                    selectedRecommendations[recommendation['id']] = value ?? false;
-                                  });
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 2.h),
-                    // Bahagian checkbox untuk interventionPlan (hanya tajuk yang dipaparkan)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Container(
-                            width: double.infinity,
-                            decoration: const BoxDecoration(
-                              color: Growkids.purple,
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(15),
-                                topRight: Radius.circular(15),
-                              ),
-                            ),
-                            padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 2.h),
-                            child: Text(
-                              'Select intervention plans:',
-                              style: TextStyle(color: Colors.white, fontSize: 18.sp),
-                              textAlign: TextAlign.left,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 2.h, vertical: 1.h),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: Radius.circular(15),
-                              bottomRight: Radius.circular(15),
-                            ),
-                          ),
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: interventionPlan.length,
-                            itemBuilder: (context, index) {
-                              final plan = interventionPlan[index];
-                              return CheckboxListTile(
-                                title: Text(plan['title']),
-                                value: selectedInterventions[plan['id']] ?? false,
-                                onChanged: (bool? value) {
-                                  setState(() {
-                                    selectedInterventions[plan['id']] = value ?? false;
-                                  });
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 3.h),
-                    // Butang "Submit All" yang mengumpul dan menghantar semua data
-                    Center(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Growkids.purple,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15), // <-- Radius
-                          ),
-                        ),
-                        onPressed: submitAllData,
-                        child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 2.h, vertical: 1.h),
-                          child: Text(
-                            "Submit All",
-                            style: TextStyle(
-                              fontSize: 16.sp,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 2.h),
-                  ],
-                ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 4.h,
+            backgroundColor: Colors.white.withOpacity(0.95),
+            child: Text(
+              widget.studentName.isNotEmpty ? widget.studentName[0].toUpperCase() : '?',
+              style: TextStyle(
+                fontSize: 18.sp,
+                color: Growkids.purpleFlo,
               ),
             ),
+          ),
+          SizedBox(width: 2.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.studentName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  'ID: ${widget.studentId} • Age: ${widget.age.toStringAsFixed(0)} mo',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.sp,
+                    color: Colors.white.withOpacity(0.85),
+                  ),
+                ),
+                SizedBox(height: 1.h),
+                Wrap(
+                  spacing: 1.h,
+                  runSpacing: 1.h,
+                  children: [
+                    _pill('Step', '${currentStep + 1} / ${stepLabels.length}'),
+                    _pill('Selected', '${sugCount + recCount + intCount}'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: isLoading ? null : _loadAll,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: EdgeInsets.all(1.5.h),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.92),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(Icons.refresh_rounded, size: 3.h, color: Growkids.purpleFlo),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildCard({
-    required String title,
-    required double devAge,
-  }) {
-    return Card(
-      color: GrowkidsPastel.purple,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      elevation: 1,
-      child: Padding(
-        padding: EdgeInsets.all(1.h),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
+  Widget _pill(String label, String value) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 1.2.h, vertical: 0.65.h),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.92),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label: $value',
+        style: TextStyle(fontSize: 12.sp, color: Growkids.purpleFlo, fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+
+  Widget _stepHeaderCard() {
+    final accent = _stepAccent(currentStep);
+
+    return Container(
+      padding: EdgeInsets.all(1.8.h),
+      decoration: BoxDecoration(
+        color: accent.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withOpacity(0.08)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 5.h,
+            width: 5.h,
+            decoration: BoxDecoration(
+              color: accent.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.layers_rounded, color: accent, size: 3.h),
+          ),
+          SizedBox(width: 2.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(stepLabels[currentStep],
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                    )),
+                SizedBox(height: 0.3.h),
+                Text(
+                  _stepSubtitle(currentStep),
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 1.5.h, vertical: 0.9.h),
+            decoration: BoxDecoration(
+              color: accent.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '${_activeSelectedCount()} selected',
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: accent,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepTabs() {
+    return SizedBox(
+      height: 4.5.h,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: stepLabels.length,
+        separatorBuilder: (_, __) => SizedBox(width: 0.9.h),
+        itemBuilder: (context, i) {
+          final bool selected = i == currentStep;
+          final accent = _stepAccent(i);
+
+          // complete state (optional): kalau ada selection, mark “complete”
+          final int c = (i == 0)
+              ? sugCount
+              : (i == 1)
+                  ? recCount
+                  : intCount;
+          final bool done = c > 0;
+
+          return InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: () => setState(() => currentStep = i),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              padding: EdgeInsets.symmetric(horizontal: 1.4.h),
               decoration: BoxDecoration(
-                color: devAge == widget.age ? Colors.green : Colors.red,
-                borderRadius: BorderRadius.circular(10),
+                color: selected ? accent : Colors.black.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: selected ? accent : Colors.black.withOpacity(0.10),
+                ),
               ),
-              padding: EdgeInsets.symmetric(horizontal: 2.h, vertical: 1.h),
-              child: Text(
-                "${devAge} Mo.",
-                style: TextStyle(fontSize: 14.sp, color: Colors.white),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (done) ...[
+                    Icon(Icons.check_circle_rounded, size: 1.8.h, color: selected ? Colors.white : accent),
+                    SizedBox(width: 0.6.h),
+                  ],
+                  Text(
+                    stepLabels[i],
+                    style: TextStyle(
+                      fontSize: 13.sp,
+                      color: selected ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 2.h),
-            Text(
-              title,
-              style: TextStyle(fontSize: 14.sp),
-              textAlign: TextAlign.center,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _scrollingChecklist() {
+    // Decide data based on step
+    List<Map<String, dynamic>> items;
+    Map<dynamic, bool> selectedMap;
+    String labelKey;
+
+    if (currentStep == 0) {
+      items = suggestionData;
+      selectedMap = selectedSuggestions;
+      labelKey = 'suggestion';
+    } else if (currentStep == 1) {
+      items = recommendationData;
+      selectedMap = selectedRecommendations;
+      labelKey = 'recommendation';
+    } else {
+      items = interventionPlan;
+      selectedMap = selectedInterventions;
+      labelKey = 'title';
+    }
+
+    if (items.isEmpty) {
+      return Center(
+        child: Text(
+          'No items found.',
+          style: TextStyle(
+            fontSize: 14.sp,
+          ),
+        ),
+      );
+    }
+
+    final accent = _stepAccent(currentStep);
+
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      itemCount: items.length,
+      separatorBuilder: (_, __) => Divider(height: 1.h, color: Colors.black.withOpacity(0.06)),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        final id = item['id'];
+        final label = (item[labelKey] ?? '').toString();
+        final checked = selectedMap[id] ?? false;
+
+        return InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => setState(() => selectedMap[id] = !checked),
+          child: Container(
+            padding: EdgeInsets.all(1.2.h),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.black.withOpacity(0.10)),
             ),
-            SizedBox(height: 0.5.h),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Transform.scale(
+                  scale: 0.12.h,
+                  child: Checkbox(
+                    value: checked,
+                    activeColor: accent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    onChanged: (v) => setState(() => selectedMap[id] = v ?? false),
+                  ),
+                ),
+                SizedBox(width: 1.w),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13.sp,
+                      color: Colors.black.withOpacity(0.78),
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 1.1.h, vertical: 0.55.h),
+                  decoration: BoxDecoration(
+                    color: checked ? accent : accent.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: checked ? accent : accent.withOpacity(0.18)),
+                  ),
+                  child: Text(
+                    checked ? 'Picked' : 'Pick',
+                    style: TextStyle(fontSize: 13.sp, color: checked ? Colors.white : accent),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _bottomActionBar({
+    required bool isLast,
+    required VoidCallback? onBack,
+    required VoidCallback? onNext,
+  }) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(2.2.h, 1.2.h, 2.2.h, 2.0.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.black.withOpacity(0.08))),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, -10),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.black,
+                  side: BorderSide(color: Colors.black.withOpacity(0.18), width: 1.2),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  padding: EdgeInsets.symmetric(vertical: 1.55.h),
+                ),
+                onPressed: onBack,
+                child: Text(
+                  'Back',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: 1.2.h),
+            Expanded(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Growkids.purpleFlo,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  padding: EdgeInsets.symmetric(vertical: 1.55.h),
+                  elevation: 0,
+                ),
+                onPressed: isSubmitting ? null : (isLast ? submitAllData : onNext), // ✅ last step = submit
+                child: isSubmitting
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Text(
+                        isLast ? 'Submit' : 'Next',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14.sp,
+                        ),
+                      ),
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  // ======================
+  // Build
+  // ======================
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isLast = isLastStep;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF6F7FB),
+      appBar: AppBar(
+        backgroundColor: Growkids.purpleFlo,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('Therapist Suggestion', style: TextStyle(color: Colors.white)),
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                // Header student fixed
+                Padding(
+                  padding: EdgeInsets.fromLTRB(2.2.h, 1.6.h, 2.2.h, 1.2.h),
+                  child: _premiumHeader(),
+                ),
+
+                // Main card
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 2.2.h),
+                    child: Container(
+                      padding: EdgeInsets.all(1.6.h),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.black.withOpacity(0.08)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.06),
+                            blurRadius: 18,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          // Progress
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(999),
+                            child: LinearProgressIndicator(
+                              value: (currentStep + 1) / stepLabels.length,
+                              minHeight: 0.7.h,
+                              backgroundColor: Colors.black.withOpacity(0.06),
+                              color: Growkids.purpleFlo,
+                            ),
+                          ),
+                          SizedBox(height: 1.2.h),
+
+                          // Tabs
+                          _stepTabs(),
+                          SizedBox(height: 1.2.h),
+
+                          // Step header card
+                          _stepHeaderCard(),
+                          SizedBox(height: 1.2.h),
+
+                          // ONLY this scrolls
+                          Expanded(child: _scrollingChecklist()),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Bottom action bar fixed
+                _bottomActionBar(
+                  isLast: isLast,
+                  onBack: currentStep > 0 ? _goBack : null,
+                  onNext: !isLast ? _goNext : null,
+                ),
+              ],
+            ),
     );
   }
 }
