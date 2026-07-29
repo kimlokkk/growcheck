@@ -48,6 +48,22 @@ class Growkids {
       900: Color(0xfffdcee2), //100%
     },
   );
+
+  static const MaterialColor purpleBright = MaterialColor(
+    0xFF7A5CFF,
+    <int, Color>{
+      50: Color(0xff330012),
+      100: Color(0xff660024),
+      200: Color(0xff62042b),
+      300: Color(0xff930641),
+      400: Color(0xffc40856),
+      500: Color(0xfff50a6c),
+      600: Color(0xfff73b89),
+      700: Color(0xfff96ca7),
+      800: Color(0xfffb9dc4),
+      900: Color(0xfffdcee2),
+    },
+  );
 }
 
 class GrowkidsPastel {
