@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:growcheck_app_v2/ui/colour.dart';
 import 'package:sizer/sizer.dart';
+import 'package:growcheck_app_v2/services/app_update_checker.dart';
+import 'package:growcheck_app_v2/ui/colour.dart';
 import 'login.dart';
+import 'onboard_layout.dart';
 
 class Onboard extends StatefulWidget {
   const Onboard({super.key});
@@ -19,6 +21,13 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppUpdateChecker.check(
+        context,
+        appKey: 'growcheck_therapist',
+      );
+    });
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -59,6 +68,40 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    if (!useDesktopOnboardingLayout(context)) {
+      return _buildLegacy(context);
+    }
+
+    return ResponsiveOnboardLayout(
+      fadeAnimation: _fadeAnimation,
+      slideAnimation: _slideAnimation,
+      scaleAnimation: _scaleAnimation,
+      onGetStarted: _openLogin,
+    );
+  }
+
+  void _openLogin() {
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const Login(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOutCubic;
+          final tween =
+              Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 600),
+      ),
+    );
+  }
+
+  Widget _buildLegacy(BuildContext context) {
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -84,7 +127,7 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
                 height: 300,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                 ),
               ),
             ),
@@ -96,7 +139,7 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
                 height: 350,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                 ),
               ),
             ),
@@ -108,7 +151,7 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
                 height: 200,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Growkids.pink.withOpacity(0.1),
+                  color: Growkids.pink.withValues(alpha: 0.1),
                 ),
               ),
             ),
@@ -136,7 +179,7 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Growkids.pink.withOpacity(0.3),
+                                    color: Growkids.pink.withValues(alpha: 0.3),
                                     blurRadius: 30,
                                     spreadRadius: 5,
                                     offset: const Offset(0, 10),
@@ -169,7 +212,8 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
                                     letterSpacing: 1.2,
                                     shadows: [
                                       Shadow(
-                                        color: Colors.black.withOpacity(0.2),
+                                        color:
+                                            Colors.black.withValues(alpha: 0.2),
                                         offset: const Offset(0, 2),
                                         blurRadius: 8,
                                       ),
@@ -183,10 +227,11 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
                                     vertical: 1.5.h,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.15),
+                                    color: Colors.white.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(30),
                                     border: Border.all(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color:
+                                          Colors.white.withValues(alpha: 0.3),
                                       width: 1,
                                     ),
                                   ),
@@ -194,7 +239,8 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
                                     'Professional Child Development Assessment',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.95),
+                                      color:
+                                          Colors.white.withValues(alpha: 0.95),
                                       fontSize: 12.sp,
                                       fontWeight: FontWeight.w400,
                                       letterSpacing: 0.5,
@@ -218,7 +264,7 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
                                 borderRadius: BorderRadius.circular(15),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Growkids.pink.withOpacity(0.4),
+                                    color: Growkids.pink.withValues(alpha: 0.4),
                                     blurRadius: 20,
                                     spreadRadius: 0,
                                     offset: const Offset(0, 8),
@@ -232,16 +278,25 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
                                     Navigator.pushReplacement(
                                       context,
                                       PageRouteBuilder(
-                                        pageBuilder: (context, animation, secondaryAnimation) => const Login(),
-                                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                        pageBuilder: (context, animation,
+                                                secondaryAnimation) =>
+                                            const Login(),
+                                        transitionsBuilder: (context, animation,
+                                            secondaryAnimation, child) {
                                           const begin = Offset(1.0, 0.0);
                                           const end = Offset.zero;
                                           const curve = Curves.easeInOutCubic;
-                                          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                                          var offsetAnimation = animation.drive(tween);
-                                          return SlideTransition(position: offsetAnimation, child: child);
+                                          var tween = Tween(
+                                                  begin: begin, end: end)
+                                              .chain(CurveTween(curve: curve));
+                                          var offsetAnimation =
+                                              animation.drive(tween);
+                                          return SlideTransition(
+                                              position: offsetAnimation,
+                                              child: child);
                                         },
-                                        transitionDuration: const Duration(milliseconds: 600),
+                                        transitionDuration:
+                                            const Duration(milliseconds: 600),
                                       ),
                                     );
                                   },
@@ -259,7 +314,8 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
                                       borderRadius: BorderRadius.circular(15),
                                     ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Text(
                                           'Get Started',
@@ -330,10 +386,10 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withOpacity(0.2),
+          color: Colors.white.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -342,7 +398,7 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
           Container(
             padding: EdgeInsets.all(1.h),
             decoration: BoxDecoration(
-              color: Growkids.pink.withOpacity(0.3),
+              color: Growkids.pink.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -356,7 +412,7 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
             child: Text(
               text,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w400,
               ),
