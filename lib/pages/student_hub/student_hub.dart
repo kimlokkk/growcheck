@@ -1321,15 +1321,63 @@ class _StudentHubPageState extends State<StudentHubPage> {
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Your students',
+                      style: TextStyle(
+                        color: Color(0xFF252733),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Select a student to view records and tools.',
+                      style: TextStyle(
+                        color: Color(0xFF7D8290),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Growkids.purpleFlo.withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '${_filtered.length}',
+                  style: const TextStyle(
+                    color: Growkids.purpleFlo,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
           TextField(
             controller: _searchCtrl,
             onChanged: _filter,
+            textInputAction: TextInputAction.search,
             decoration: InputDecoration(
-              hintText: 'Search student...',
-              prefixIcon: const Icon(Icons.search_rounded),
+              hintText: 'Search by student name',
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                color: Growkids.purpleFlo,
+              ),
               filled: true,
-              fillColor: Growkids.purple.withValues(alpha: 0.08),
+              fillColor: const Color(0xFFF7F5FF),
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               border: OutlineInputBorder(
@@ -1354,6 +1402,7 @@ class _StudentHubPageState extends State<StudentHubPage> {
             child: _filtered.isEmpty
                 ? _EmptyState(text: _loading ? 'Loading…' : 'No student found.')
                 : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 12),
                     itemCount: _filtered.length,
                     itemBuilder: (context, i) {
                       final s = _filtered[i];
@@ -1364,8 +1413,7 @@ class _StudentHubPageState extends State<StudentHubPage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => _StudentDetailPhonePage(
-                                    student: s, role: widget.role),
+                                builder: (_) => _buildPhoneDetailPage(s),
                               ),
                             );
                           },
@@ -1373,10 +1421,18 @@ class _StudentHubPageState extends State<StudentHubPage> {
                           child: Container(
                             padding: EdgeInsets.all(1.4.h),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF8F9FF),
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                   color: Colors.black.withValues(alpha: 0.06)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF26324A)
+                                      .withValues(alpha: .05),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
                             ),
                             child: Row(
                               children: [
@@ -1385,7 +1441,8 @@ class _StudentHubPageState extends State<StudentHubPage> {
                                   children: [
                                     CircleAvatar(
                                       radius: 22,
-                                      backgroundColor: Colors.white,
+                                      backgroundColor: Growkids.purpleFlo
+                                          .withValues(alpha: .10),
                                       child: Text(
                                         s.name.isNotEmpty
                                             ? s.name[0].toUpperCase()
@@ -1404,7 +1461,7 @@ class _StudentHubPageState extends State<StudentHubPage> {
                                     ),
                                   ],
                                 ),
-                                SizedBox(width: 1.2.w),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -1412,19 +1469,23 @@ class _StudentHubPageState extends State<StudentHubPage> {
                                     children: [
                                       Text(
                                         s.name,
-                                        style: TextStyle(
-                                            fontSize: 13.sp,
-                                            fontWeight: FontWeight.w900),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Color(0xFF292B35),
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w800,
+                                        ),
                                       ),
                                       SizedBox(height: 0.3.h),
                                       Text(
-                                        s.age,
+                                        '${s.age}  |  ${s.isOfficial ? 'Official' : s.status}',
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                            fontSize: 11.sp,
-                                            color: Colors.black
-                                                .withValues(alpha: 0.6)),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF7D8290),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -1441,6 +1502,28 @@ class _StudentHubPageState extends State<StudentHubPage> {
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPhoneDetailPage(_HubStudent student) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F6FC),
+      appBar: AppBar(
+        backgroundColor: Growkids.purpleFlo,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Student details',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+      ),
+      body: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: _buildDetailPanel(student),
+        ),
       ),
     );
   }

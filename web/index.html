@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -18,21 +19,59 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Student development and clinical progress management system.">
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="growcheck_app_v2">
+  <meta name="apple-mobile-web-app-title" content="GrowCheck">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon.png" />
 
-  <title>growcheck_app_v2</title>
+  <title>Growcheck</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    html, body { width: 100%; height: 100%; margin: 0; background: #f5f3ff; font-family: Arial, sans-serif; }
+    #app-loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; color: #30323c; }
+    #app-loading .mark { width: 54px; height: 54px; margin: 0 auto 16px; border: 5px solid rgba(108, 69, 255, .16); border-top-color: #6c45ff; border-radius: 50%; animation: spin .8s linear infinite; }
+    #app-loading h1 { margin: 0 0 7px; font-size: 20px; }
+    #app-loading p { margin: 0; color: #777b88; font-size: 13px; }
+    #app-loading button { display: none; margin: 16px auto 0; padding: 10px 18px; color: white; background: #6c45ff; border: 0; border-radius: 10px; font-weight: 700; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
+
 <body>
+  <div id="app-loading" role="status">
+    <div>
+      <div class="mark"></div>
+      <h1>Loading GrowCheck</h1>
+      <p id="app-loading-message">Preparing your workspace...</p>
+      <button id="app-retry" type="button" onclick="location.reload()">Try again</button>
+    </div>
+  </div>
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      document.getElementById('app-loading')?.remove();
+    });
+    window.addEventListener('error', function () {
+      const message = document.getElementById('app-loading-message');
+      const retry = document.getElementById('app-retry');
+      if (message) message.textContent = 'GrowCheck could not start. Please update Safari and try again.';
+      if (retry) retry.style.display = 'block';
+    });
+    setTimeout(function () {
+      const loading = document.getElementById('app-loading');
+      if (!loading) return;
+      const message = document.getElementById('app-loading-message');
+      const retry = document.getElementById('app-retry');
+      if (message) message.textContent = 'Loading is taking longer than expected. Check your connection and retry.';
+      if (retry) retry.style.display = 'block';
+    }, 15000);
+  </script>
 </body>
+
 </html>

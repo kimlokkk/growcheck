@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:growcheck_app_v2/core/config/api_config.dart';
 import 'package:http/http.dart' as http;
@@ -20,6 +21,9 @@ class AppUpdateChecker {
     BuildContext context, {
     required String appKey,
   }) async {
+    // This checker targets the installed Android/iOS apps. Running dart:io
+    // platform checks in a browser can throw UnsupportedError.
+    if (kIsWeb) return;
     if (_isShowing) return;
 
     try {

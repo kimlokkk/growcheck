@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:growcheck_app_v2/core/config/api_config.dart';
@@ -84,15 +85,17 @@ class _HomeProgramUploadMaterialPageState
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'docx'],
-      withData: false,
+      withData: kIsWeb,
       allowMultiple: true,
     );
 
     if (result == null || result.files.isEmpty) return;
     setState(() {
-      final existingPaths = _files.map((file) => file.path).toSet();
+      String fileKey(PlatformFile file) =>
+          file.path ?? '${file.name}:${file.size}';
+      final existingFiles = _files.map(fileKey).toSet();
       final newFiles = result.files.where((file) {
-        return file.path != null && !existingPaths.contains(file.path);
+        return !existingFiles.contains(fileKey(file));
       });
       _files = [..._files, ...newFiles];
     });
@@ -115,9 +118,25 @@ class _HomeProgramUploadMaterialPageState
         ..fields['uploaded_by_name'] = widget.therapistName.trim();
 
       for (final file in _files) {
-        request.files.add(
-          await http.MultipartFile.fromPath('files[]', file.path!),
-        );
+        if (file.bytes != null) {
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'files[]',
+              file.bytes!,
+              filename: file.name,
+            ),
+          );
+        } else if (file.path != null && file.path!.isNotEmpty) {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'files[]',
+              file.path!,
+              filename: file.name,
+            ),
+          );
+        } else {
+          throw StateError('Unable to read selected file: ${file.name}');
+        }
       }
 
       final streamed = await request.send();
