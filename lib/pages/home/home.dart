@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:growcheck_app_v2/core/config/api_config.dart';
+import 'package:growcheck_app_v2/pages/kss_assessment/kss_assessment_home.dart';
 import 'package:growcheck_app_v2/pages/student_hub/student_hub.dart';
 import 'package:growcheck_app_v2/pages/schedule/teacher_schedule.dart';
 import 'package:growcheck_app_v2/pages/attendance/attendance_page.dart';
@@ -512,6 +513,17 @@ class _HomeV3State extends State<HomeV3> {
     }
   }
 
+  void _goToKssAssessment() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => KssAssessmentHome(
+          teacherId: staffId, // Role yang telah dipetakan
+        ),
+      ),
+    );
+  }
+
   // ====== BUILD ======
   @override
   Widget build(BuildContext context) {
@@ -934,6 +946,13 @@ class _HomeV3State extends State<HomeV3> {
           icon: Icons.calendar_month_rounded,
           accent: Colors.cyan,
           onTap: _goToSchedule,
+        ),
+      if (role == UserRole.therapist)
+        _ActionTileV2(
+          title: 'KSS Assessment',
+          icon: Icons.score,
+          accent: Colors.red,
+          onTap: _goToKssAssessment,
         ),
     ];
   }
