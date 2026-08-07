@@ -1,4 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:growcheck_app_v2/core/config/api_config.dart';
@@ -11,7 +13,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
-import 'dart:io';
 
 class OnboardShared extends StatefulWidget {
   const OnboardShared({super.key});

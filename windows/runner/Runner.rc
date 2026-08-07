@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "growcheck_app_v2" "\0"
+            VALUE "CompanyName", "com.domei" "\0"
+            VALUE "FileDescription", "Growcheck" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "growcheck_app_v2" "\0"
+            VALUE "InternalName", "Growcheck" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2024 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "growcheck_app_v2.exe" "\0"
-            VALUE "ProductName", "growcheck_app_v2" "\0"
+            VALUE "OriginalFilename", "Growcheck.exe" "\0"
+            VALUE "ProductName", "Growcheck" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

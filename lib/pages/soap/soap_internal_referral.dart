@@ -37,7 +37,7 @@ class _InternalReferralPageState extends State<InternalReferralPage> {
   bool _isLoading = true;
   List<dynamic> _referrals = [];
 
-  final String _apiUrl = ApiConfig.flutter('soap_get_referrals.php');
+  final String _apiUrl = ApiConfig.flutter('soap_get_referral.php');
   /*final String _apiUrl =
       "http://app-kizzu.test/growkids/flutter/soap_get_referrals.php";*/
 

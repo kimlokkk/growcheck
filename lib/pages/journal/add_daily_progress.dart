@@ -2,7 +2,6 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -98,6 +97,7 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
     try {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
+        withData: kIsWeb,
         type: FileType.custom,
         allowedExtensions: ['jpg', 'png', 'jpeg', 'pdf', 'doc', 'docx'],
       );
@@ -120,6 +120,7 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
     try {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
+        withData: kIsWeb,
         type: FileType.custom,
         allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
         dialogTitle: 'Select journal photos',
@@ -232,16 +233,21 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
       final List<XFile> images = await _imagePicker.pickMultiImage();
 
       if (images.isNotEmpty) {
+        final selectedImages = await Future.wait(
+          images.map((img) async {
+            final bytes = kIsWeb ? await img.readAsBytes() : null;
+            return PlatformFile(
+              name: img.name,
+              path: kIsWeb ? null : img.path,
+              size: bytes?.length ?? await img.length(),
+              bytes: bytes,
+            );
+          }),
+        );
+
+        if (!mounted) return;
         setState(() {
-          _attachments.addAll(
-            images.map(
-              (img) => PlatformFile(
-                name: img.name,
-                path: img.path,
-                size: File(img.path).lengthSync(),
-              ),
-            ),
-          );
+          _attachments.addAll(selectedImages);
         });
       }
     } catch (e) {
@@ -451,9 +457,21 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
 
       if (_attachments.isNotEmpty) {
         for (var file in _attachments) {
-          if (file.path != null && file.path!.isNotEmpty) {
+          if (file.bytes != null) {
             request.files.add(
-              await http.MultipartFile.fromPath('attachments[]', file.path!),
+              http.MultipartFile.fromBytes(
+                'attachments[]',
+                file.bytes!,
+                filename: file.name,
+              ),
+            );
+          } else if (file.path != null && file.path!.isNotEmpty) {
+            request.files.add(
+              await http.MultipartFile.fromPath(
+                'attachments[]',
+                file.path!,
+                filename: file.name,
+              ),
             );
           }
         }

@@ -104,14 +104,6 @@ class TherapistSchedulePageState extends State<TherapistSchedulePage> {
 
   // ========= CALENDAR derived =========
 
-  bool _hasEvent(DateTime day) {
-    return all.any((s) {
-      final d = DateTime.tryParse((s['date'] ?? '').toString());
-      if (d == null) return false;
-      return _day(d) == _day(day);
-    });
-  }
-
   List<Map<String, dynamic>> get _selectedDayItems {
     final list = all.where((s) {
       final d = DateTime.tryParse((s['date'] ?? '').toString());
@@ -822,8 +814,12 @@ class TherapistSchedulePageState extends State<TherapistSchedulePage> {
 
               final day = days[i - (firstWeekday - 1)];
               final isSelected = _day(day) == _day(selectedDay);
-              final hasEvent = _hasEvent(day);
               final isToday = _day(day) == _day(DateTime.now());
+              final dayItems = all.where((item) {
+                final date =
+                    DateTime.tryParse((item['date'] ?? '').toString());
+                return date != null && _day(date) == _day(day);
+              }).length;
 
               return GestureDetector(
                 onTap: () => setState(() => selectedDay = day),
@@ -851,15 +847,31 @@ class TherapistSchedulePageState extends State<TherapistSchedulePage> {
                           color: isSelected ? Growkids.purpleFlo : Colors.black,
                         ),
                       ),
-                      if (hasEvent)
+                      if (dayItems > 0)
                         Positioned(
-                          bottom: 15,
+                          bottom: 4,
                           child: Container(
-                            width: 15,
-                            height: 15,
-                            decoration: const BoxDecoration(
-                              color: Growkids.purpleFlo,
-                              shape: BoxShape.circle,
+                            constraints: const BoxConstraints(minWidth: 20),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Growkids.purpleFlo
+                                  : Growkids.purpleFlo.withValues(alpha: .10),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '$dayItems',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : Growkids.purpleFlo,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                         ),

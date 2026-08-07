@@ -19,6 +19,70 @@ bool _useDesktopJournalHistoryLayout(BuildContext context) {
   return desktopPlatform && MediaQuery.sizeOf(context).width >= 900;
 }
 
+List<String> _parseJournalAttachments(dynamic rawValue) {
+  if (rawValue == null) return [];
+  if (rawValue is List) {
+    return rawValue
+        .map((value) => value.toString().trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+  }
+
+  final value = rawValue.toString().trim();
+  if (value.isEmpty) return [];
+
+  try {
+    final decoded = jsonDecode(value);
+    if (decoded is List) {
+      return decoded
+          .map((item) => item.toString().trim())
+          .where((item) => item.isNotEmpty)
+          .toList();
+    }
+    if (decoded is String && decoded.trim().isNotEmpty) {
+      return [decoded.trim()];
+    }
+  } catch (_) {
+    // The API may return a plain filename instead of JSON.
+  }
+
+  return value.contains(',')
+      ? value
+          .split(',')
+          .map((item) => item.trim())
+          .where((item) => item.isNotEmpty)
+          .toList()
+      : [value];
+}
+
+String _normalizeJournalAttachmentUrl(String rawValue) {
+  var value = rawValue.trim().replaceAll('\\', '/');
+  if (value.isEmpty) return '';
+
+  value = value.replaceFirst(RegExp(r'^(\.\./)+'), '');
+
+  final uri = Uri.tryParse(value);
+  if (uri != null && uri.hasScheme) {
+    if (uri.host == 'app-kizzu.test') {
+      return ApiConfig.url(uri.path);
+    }
+    if (uri.host == 'app.kizzukids.com.my' && uri.scheme == 'http') {
+      return uri.replace(scheme: 'https').toString();
+    }
+    return value;
+  }
+
+  if (value.startsWith('/growkids/')) return ApiConfig.url(value);
+  if (value.startsWith('growkids/')) return ApiConfig.url('/$value');
+  if (value.startsWith('/journal/')) {
+    return ApiConfig.growkids(value.substring(1));
+  }
+  if (value.startsWith('journal/')) return ApiConfig.growkids(value);
+
+  final fileName = value.split('/').last;
+  return ApiConfig.journal(Uri.encodeComponent(fileName));
+}
+
 class JournalHistoryPage extends StatefulWidget {
   final String teacherId;
 
@@ -705,19 +769,17 @@ class _JournalItem {
   });
 
   factory _JournalItem.fromJson(Map json) {
-    List<String> parsedAttachments = [];
+    final mergedAttachments = <String>[
+      ..._parseJournalAttachments(json['attachments']),
+      ..._parseJournalAttachments(json['attachment']),
+    ];
+    final normalizedAttachments = <String>[];
+    final seen = <String>{};
 
-    if (json['attachments'] is List) {
-      parsedAttachments =
-          (json['attachments'] as List).map((e) => e.toString()).toList();
-    } else if (json['attachment'] != null &&
-        json['attachment'].toString().isNotEmpty) {
-      try {
-        final decoded = jsonDecode(json['attachment']);
-        if (decoded is List) {
-          parsedAttachments = decoded.map((e) => e.toString()).toList();
-        }
-      } catch (_) {}
+    for (final attachment in mergedAttachments) {
+      final normalized = _normalizeJournalAttachmentUrl(attachment);
+      if (normalized.isEmpty || !seen.add(normalized.toLowerCase())) continue;
+      normalizedAttachments.add(normalized);
     }
 
     return _JournalItem(
@@ -727,7 +789,7 @@ class _JournalItem {
       title: json['title'].toString(),
       content: json['content'].toString(),
       studentName: json['student_name'].toString(),
-      attachments: parsedAttachments,
+      attachments: normalizedAttachments,
     );
   }
 }

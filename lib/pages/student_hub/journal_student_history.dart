@@ -136,8 +136,10 @@ class _StudentJournalPageState extends State<StudentJournalPage> {
   }
 
   String _normalizeAttachmentUrl(String value) {
-    final trimmed = value.trim();
+    var trimmed = value.trim().replaceAll('\\', '/');
     if (trimmed.isEmpty) return '';
+
+    trimmed = trimmed.replaceFirst(RegExp(r'^(\.\./)+'), '');
 
     if (trimmed.startsWith('http://app-kizzu.test/growkids/journal/')) {
       return trimmed.replaceFirst(
@@ -164,7 +166,23 @@ class _StudentJournalPageState extends State<StudentJournalPage> {
       return trimmed;
     }
 
-    return '$_journalBaseUrl$trimmed';
+    if (trimmed.startsWith('/growkids/')) {
+      return ApiConfig.url(trimmed);
+    }
+
+    if (trimmed.startsWith('growkids/')) {
+      return ApiConfig.url('/$trimmed');
+    }
+
+    if (trimmed.startsWith('/journal/')) {
+      return ApiConfig.growkids(trimmed.substring(1));
+    }
+
+    if (trimmed.startsWith('journal/')) {
+      return ApiConfig.growkids(trimmed);
+    }
+
+    return '$_journalBaseUrl${Uri.encodeComponent(trimmed.split('/').last)}';
   }
 
   String _attachmentDedupKey(String value) {
