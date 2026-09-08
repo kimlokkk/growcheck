@@ -28,6 +28,7 @@ DROP TABLE IF EXISTS kss_pbd_reports;
 DROP TABLE IF EXISTS kss_sk_results;
 DROP TABLE IF EXISTS kss_sp_observations;
 DROP TABLE IF EXISTS kss_sk_assessment_cycles;
+DROP TABLE IF EXISTS kss_assessment_batches;
 DROP TABLE IF EXISTS kss_class_students;
 DROP TABLE IF EXISTS kss_classes;
 DROP TABLE IF EXISTS kss_performance_standards;
@@ -245,19 +246,38 @@ CREATE TABLE kss_class_students (
 -- 3. SK ASSESSMENT CYCLE / REVISION
 -- ============================================================
 
--- One cycle = one round of assessment for one SK in one class.
--- Example:
---   Attempt 1 = INITIAL
---   Attempt 2 = REVISION
---
--- A cycle can contain observations made on different lesson dates.
--- Reassessment creates a NEW cycle; previous cycles are not overwritten.
+CREATE TABLE kss_assessment_batches (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    class_id BIGINT UNSIGNED NOT NULL,
+    reporting_period ENUM('SEM1','SEM2') NOT NULL,
+    sequence_no INT UNSIGNED NOT NULL,
+    assessment_type ENUM('INITIAL','REVISION') NOT NULL,
+    revision_no INT UNSIGNED NOT NULL DEFAULT 0,
+    status ENUM('IN_PROGRESS','PUBLISHED','CANCELLED') NOT NULL DEFAULT 'IN_PROGRESS',
+    started_by_teacher_id BIGINT UNSIGNED NOT NULL,
+    published_by_teacher_id BIGINT UNSIGNED NULL,
+    started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    published_at DATETIME NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_kss_batch_sequence (class_id, reporting_period, sequence_no),
+    KEY idx_kss_batch_status (class_id, reporting_period, status),
+    CONSTRAINT fk_kss_batch_class FOREIGN KEY (class_id)
+        REFERENCES kss_classes(id) ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- One cycle = one semester assessment for one SK in one class.
+-- Semester 1 and Semester 2 are stored separately; earlier results are never overwritten.
 CREATE TABLE kss_sk_assessment_cycles (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     class_id BIGINT UNSIGNED NOT NULL,
     content_standard_id BIGINT UNSIGNED NOT NULL,
+    assessment_batch_id BIGINT UNSIGNED NULL,
+    reporting_period ENUM('SEM1','SEM2') NOT NULL DEFAULT 'SEM1',
     attempt_no INT UNSIGNED NOT NULL DEFAULT 1,
     cycle_type ENUM('INITIAL','REVISION') NOT NULL DEFAULT 'INITIAL',
+    phase ENUM('OBSERVATION','TP_ASSIGNMENT') NOT NULL DEFAULT 'OBSERVATION',
     status ENUM('IN_PROGRESS','COMPLETED','CANCELLED') NOT NULL DEFAULT 'IN_PROGRESS',
     started_by_teacher_id BIGINT UNSIGNED NOT NULL,
     started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -271,7 +291,11 @@ CREATE TABLE kss_sk_assessment_cycles (
         attempt_no
     ),
     KEY idx_kss_sk_cycles_class (class_id, status),
+    KEY idx_kss_cycles_period (class_id, reporting_period, status),
     KEY idx_kss_sk_cycles_sk (content_standard_id),
+    KEY idx_kss_cycles_batch (assessment_batch_id),
+    CONSTRAINT fk_kss_cycles_batch FOREIGN KEY (assessment_batch_id)
+        REFERENCES kss_assessment_batches(id) ON UPDATE CASCADE ON DELETE CASCADE,
     CONSTRAINT fk_kss_sk_cycles_class
         FOREIGN KEY (class_id)
         REFERENCES kss_classes(id)
@@ -366,7 +390,7 @@ CREATE TABLE kss_pbd_reports (
     class_id BIGINT UNSIGNED NOT NULL,
     student_id BIGINT UNSIGNED NOT NULL,
     academic_year SMALLINT UNSIGNED NOT NULL,
-    reporting_period ENUM('SEM1','SEM2','FINAL','OTHER') NOT NULL,
+    reporting_period ENUM('SEM1','SEM2') NOT NULL,
     recommended_tp TINYINT UNSIGNED NULL,
     final_tp TINYINT UNSIGNED NULL,
     calculation_method ENUM('MODE','PROFESSIONAL_JUDGEMENT') NULL,
@@ -394,7 +418,7 @@ CREATE TABLE kss_pbd_reports (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Snapshot of the exact SK results used when a PBD report is generated.
--- This prevents an old Sem 1 report from changing after later reassessment.
+-- This prevents a saved semester report from changing after later assessments.
 CREATE TABLE kss_pbd_report_items (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     report_id BIGINT UNSIGNED NOT NULL,
@@ -441,7 +465,6 @@ LEFT JOIN kss_class_students cs
 GROUP BY c.id;
 
 -- Latest FINALIZED SK result for each student + class + SK.
--- If a revision exists, the revision becomes current while the old result remains.
 CREATE VIEW v_kss_latest_sk_results AS
 SELECT
     r.id AS sk_result_id,
@@ -449,6 +472,8 @@ SELECT
     cyc.class_id,
     r.student_id,
     cyc.content_standard_id,
+    cyc.reporting_period,
+    cyc.assessment_batch_id,
     cs.code AS sk_code,
     cs.statement AS sk_statement,
     cyc.attempt_no,
@@ -463,22 +488,26 @@ INNER JOIN kss_sk_assessment_cycles cyc
     ON cyc.id = r.assessment_cycle_id
 INNER JOIN kss_content_standards cs
     ON cs.id = cyc.content_standard_id
+INNER JOIN kss_assessment_batches batch_row
+    ON batch_row.id = cyc.assessment_batch_id
+   AND batch_row.status = 'PUBLISHED'
 WHERE r.status = 'FINALIZED'
   AND NOT EXISTS (
       SELECT 1
       FROM kss_sk_results r2
       INNER JOIN kss_sk_assessment_cycles cyc2
           ON cyc2.id = r2.assessment_cycle_id
+      INNER JOIN kss_assessment_batches batch2
+          ON batch2.id = cyc2.assessment_batch_id
+         AND batch2.status = 'PUBLISHED'
       WHERE r2.status = 'FINALIZED'
         AND r2.student_id = r.student_id
         AND cyc2.class_id = cyc.class_id
         AND cyc2.content_standard_id = cyc.content_standard_id
+        AND cyc2.reporting_period = cyc.reporting_period
         AND (
-            r2.finalized_at > r.finalized_at
-            OR (
-                r2.finalized_at = r.finalized_at
-                AND r2.id > r.id
-            )
+            batch2.sequence_no > batch_row.sequence_no
+            OR (batch2.sequence_no = batch_row.sequence_no AND r2.id > r.id)
         )
   );
 
@@ -488,10 +517,11 @@ CREATE VIEW v_kss_tp_frequency AS
 SELECT
     class_id,
     student_id,
+    reporting_period,
     tp_level,
     COUNT(*) AS tp_frequency
 FROM v_kss_latest_sk_results
-GROUP BY class_id, student_id, tp_level;
+GROUP BY class_id, student_id, reporting_period, tp_level;
 
 -- ============================================================
 -- 6. STARTER MASTER DATA

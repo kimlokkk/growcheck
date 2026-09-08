@@ -947,7 +947,7 @@ class _HomeV3State extends State<HomeV3> {
           accent: Colors.cyan,
           onTap: _goToSchedule,
         ),
-      if (role == UserRole.therapist)
+      if (role == UserRole.teacher)
         _ActionTileV2(
           title: 'KSS Assessment',
           icon: Icons.score,

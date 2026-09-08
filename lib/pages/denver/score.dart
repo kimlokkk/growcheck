@@ -19,6 +19,7 @@ bool _useDesktopScoreResultLayout(BuildContext context) {
 }
 
 class ScoreResult extends StatefulWidget {
+  final String screeningId;
   final String studentId;
   final String studentName;
   final String age;
@@ -31,6 +32,7 @@ class ScoreResult extends StatefulWidget {
 
   const ScoreResult({
     super.key,
+    required this.screeningId,
     required this.studentId,
     required this.studentName,
     required this.age,
@@ -59,7 +61,10 @@ class _ScoreResultState extends State<ScoreResult> {
     final response = await http.post(
       Uri.parse(ApiConfig.flutter('score_result.php')),
       /*Uri.parse('http://app-kizzu.test/growkids/flutter/score_result.php'),*/
-      body: {"stud_id": widget.studentId},
+      body: {
+        "stud_id": widget.studentId,
+        "screening_id": widget.screeningId,
+      },
     );
 
     if (response.statusCode == 200) {

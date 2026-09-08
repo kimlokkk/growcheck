@@ -188,18 +188,10 @@ class _EditScreeningState extends State<EditScreening> {
     }
     int passCounter = 0;
     double? firstPassAge;
-    // If first three questions are "Pass", then set age to student's actual age.
-    if (qs.length >= 3 &&
-        qs[0]['selectedOption'] == 'Pass' &&
-        qs[1]['selectedOption'] == 'Pass' &&
-        qs[2]['selectedOption'] == 'Pass') {
-      setState(() {
-        developmentAgeByDomain[domain] = widget.age;
-      });
-      return;
-    }
+    bool encounteredNonPass = false;
     for (var q in qs) {
       if (q['selectedOption'] == 'Pass') {
+        if (!encounteredNonPass) continue;
         passCounter++;
         if (passCounter == 1) {
           firstPassAge = q['pass75'];
@@ -211,10 +203,17 @@ class _EditScreeningState extends State<EditScreening> {
           return;
         }
       } else {
+        encounteredNonPass = true;
         passCounter = 0;
         firstPassAge = null;
       }
     }
+
+    // Do not retain the previous/actual age after the therapist changes a
+    // response and there is no longer a valid three-pass baseline.
+    setState(() {
+      developmentAgeByDomain[domain] = null;
+    });
   }
 
   // Build a list of ExpansionTiles for each domain.
