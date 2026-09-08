@@ -346,9 +346,11 @@ class _DenverPageState extends State<DenverPage> {
         builder: (_) => const Center(child: CircularProgressIndicator()),
       );
 
-      final screeningId =
-          await _fetchLatestScreeningIdForStudent(picked.studId);
-      if (screeningId == null) {
+      // Continue the exact draft selected by the therapist. Previously this
+      // fetched an unordered screening list and used its first row, which
+      // could open a different/older duplicate draft.
+      final screeningId = picked.screeningId.trim();
+      if (screeningId.isEmpty) {
         throw Exception('No screening found for this student.');
       }
 
@@ -1026,10 +1028,17 @@ class _DenverStudentPickerSheetState extends State<_DenverStudentPickerSheet> {
   final TextEditingController _searchCtrl = TextEditingController();
 
   bool _loading = true;
+  bool _selectionCommitted = false;
   String? _error;
 
   List<_PickStudent> _all = [];
   List<_PickStudent> _filtered = [];
+
+  void _selectStudent(_PickStudent student) {
+    if (_selectionCommitted) return;
+    _selectionCommitted = true;
+    Navigator.pop(context, student);
+  }
 
   @override
   void initState() {
@@ -1222,10 +1231,12 @@ class _DenverStudentPickerSheetState extends State<_DenverStudentPickerSheet> {
       }
 
       final list = <_PickStudent>[];
+      final seenStudentIds = <String>{};
       for (final s in raw) {
         final sid = (s['stud_id'] ?? s['student_id'] ?? '').toString();
         if (sid.isEmpty) continue;
         if (!eligible(sid)) continue;
+        if (!seenStudentIds.add(sid)) continue;
 
         final name =
             (s['stud_name'] ?? s['student'] ?? s['name'] ?? '-').toString();
@@ -1872,7 +1883,7 @@ class _DenverStudentPickerSheetState extends State<_DenverStudentPickerSheet> {
       borderRadius: BorderRadius.circular(15),
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
-        onTap: () => Navigator.pop(context, student),
+        onTap: () => _selectStudent(student),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           decoration: BoxDecoration(

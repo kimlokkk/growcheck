@@ -138,27 +138,27 @@ class _ScreeningState extends State<Screening> {
   // Check for 3 consecutive "Pass" selections in a domain
   void checkConsecutivePasses(String domain) {
     List<Map<String, dynamic>> questionsInDomain = domainQuestions[domain]!;
+    final allPassed = questionsInDomain.isNotEmpty &&
+        questionsInDomain.every((q) => q['selectedOption'] == 'Pass');
+    if (allPassed) {
+      setState(() {
+        developmentAgeByDomain[domain] = widget.ageInMonthsINT.toDouble();
+        domainCompletedWithPasses[domain] = true;
+      });
+      return;
+    }
+
     int passCounter = 0;
     double? firstPassComponentAge;
-
-    // Check if the first three components are all "Pass"
-    if (questionsInDomain.length >= 3) {
-      if (questionsInDomain[0]['selectedOption'] == 'Pass' &&
-          questionsInDomain[1]['selectedOption'] == 'Pass' &&
-          questionsInDomain[2]['selectedOption'] == 'Pass') {
-        // Jika 3 pertama adalah Pass, tetapkan development age kepada umur sebenar pelajar
-        setState(() {
-          developmentAgeByDomain[domain] = widget.ageInMonthsINT.toDouble();
-          domainCompletedWithPasses[domain] =
-              true; // Tandakan domain sebagai lengkap
-        });
-        return;
-      }
-    }
+    bool encounteredNonPass = false;
 
     // Semak 3 kali Pass berturut-turut
     for (var question in questionsInDomain) {
       if (question['selectedOption'] == 'Pass') {
+        // Questions are ordered from the highest pass75 to the lowest. When
+        // the domain contains failures, leading passes must not mark the child
+        // on par; find the three-pass baseline below the first non-pass.
+        if (!encounteredNonPass) continue;
         passCounter++;
         if (passCounter == 1) {
           firstPassComponentAge = question['pass75'];
@@ -171,10 +171,18 @@ class _ScreeningState extends State<Screening> {
           return;
         }
       } else {
+        encounteredNonPass = true;
         passCounter = 0;
         firstPassComponentAge = null;
       }
     }
+
+    // Clear a previously calculated age when an answer changes and the domain
+    // no longer contains three consecutive passes.
+    setState(() {
+      developmentAgeByDomain[domain] = null;
+      domainCompletedWithPasses[domain] = false;
+    });
   }
 
   Future<void> handleSubmitFailComponents() async {
@@ -250,6 +258,7 @@ class _ScreeningState extends State<Screening> {
           context,
           MaterialPageRoute(
             builder: (context) => ScoreResult(
+              screeningId: jsonResponse['screening_id'].toString(),
               studentId: widget.studentId,
               age: widget.age,
               ageInMonths: widget.ageInMonths,
