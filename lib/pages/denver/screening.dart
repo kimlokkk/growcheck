@@ -1,3 +1,4 @@
+import 'development_age.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -137,51 +138,11 @@ class _ScreeningState extends State<Screening> {
 
   // Check for 3 consecutive "Pass" selections in a domain
   void checkConsecutivePasses(String domain) {
-    List<Map<String, dynamic>> questionsInDomain = domainQuestions[domain]!;
-    final allPassed = questionsInDomain.isNotEmpty &&
-        questionsInDomain.every((q) => q['selectedOption'] == 'Pass');
-    if (allPassed) {
-      setState(() {
-        developmentAgeByDomain[domain] = widget.ageInMonthsINT.toDouble();
-        domainCompletedWithPasses[domain] = true;
-      });
-      return;
-    }
-
-    int passCounter = 0;
-    double? firstPassComponentAge;
-    bool encounteredNonPass = false;
-
-    // Semak 3 kali Pass berturut-turut
-    for (var question in questionsInDomain) {
-      if (question['selectedOption'] == 'Pass') {
-        // Questions are ordered from the highest pass75 to the lowest. When
-        // the domain contains failures, leading passes must not mark the child
-        // on par; find the three-pass baseline below the first non-pass.
-        if (!encounteredNonPass) continue;
-        passCounter++;
-        if (passCounter == 1) {
-          firstPassComponentAge = question['pass75'];
-        }
-        if (passCounter == 3) {
-          setState(() {
-            developmentAgeByDomain[domain] = firstPassComponentAge;
-            domainCompletedWithPasses[domain] = true;
-          });
-          return;
-        }
-      } else {
-        encounteredNonPass = true;
-        passCounter = 0;
-        firstPassComponentAge = null;
-      }
-    }
-
-    // Clear a previously calculated age when an answer changes and the domain
-    // no longer contains three consecutive passes.
+    final age = calculateDevelopmentAge(
+        domainQuestions[domain]!, widget.ageInMonthsINT.toDouble());
     setState(() {
-      developmentAgeByDomain[domain] = null;
-      domainCompletedWithPasses[domain] = false;
+      developmentAgeByDomain[domain] = age;
+      domainCompletedWithPasses[domain] = age != null;
     });
   }
 
@@ -264,10 +225,10 @@ class _ScreeningState extends State<Screening> {
               ageInMonths: widget.ageInMonths,
               ageInMonthsINT: widget.ageInMonthsINT,
               studentName: widget.studentName,
-              ageFineMotor: developmentAgeByDomain['Fine Motor']!,
-              ageGrossMotor: developmentAgeByDomain['Gross Motor']!,
-              agePersonal: developmentAgeByDomain['Personal Social']!,
-              ageLanguage: developmentAgeByDomain['Language']!,
+              ageFineMotor: developmentAgeByDomain['Fine Motor'],
+              ageGrossMotor: developmentAgeByDomain['Gross Motor'],
+              agePersonal: developmentAgeByDomain['Personal Social'],
+              ageLanguage: developmentAgeByDomain['Language'],
             ),
           ),
           result: true,

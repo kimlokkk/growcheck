@@ -25,10 +25,10 @@ class ScoreResult extends StatefulWidget {
   final String age;
   final String ageInMonths;
   final int ageInMonthsINT;
-  final double ageFineMotor;
-  final double ageGrossMotor;
-  final double agePersonal;
-  final double ageLanguage;
+  final double? ageFineMotor;
+  final double? ageGrossMotor;
+  final double? agePersonal;
+  final double? ageLanguage;
 
   const ScoreResult({
     super.key,
@@ -891,13 +891,17 @@ class _ScoreResultState extends State<ScoreResult> {
 
   Widget _desktopDevelopmentCard(
     String title,
-    double developmentAge,
+    double? developmentAge,
     Color color,
   ) {
+    if (developmentAge == null) return _undeterminedDevelopmentCard(title);
     final actualAge = widget.ageInMonthsINT.toDouble();
     final progress =
         actualAge <= 0 ? 0.0 : (developmentAge / actualAge).clamp(0.0, 1.0);
     final passed = developmentAge == actualAge;
+    final ageColor = developmentAge < actualAge
+        ? const Color(0xFFDC3545)
+        : const Color(0xFF16A34A);
     final statusColor =
         passed ? const Color(0xFF16A34A) : const Color(0xFFDC3545);
 
@@ -963,7 +967,7 @@ class _ScoreResultState extends State<ScoreResult> {
               Text(
                 developmentAge.toStringAsFixed(0),
                 style: TextStyle(
-                  color: color,
+                  color: ageColor,
                   fontSize: 23,
                   fontWeight: FontWeight.w900,
                 ),
@@ -991,7 +995,7 @@ class _ScoreResultState extends State<ScoreResult> {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 7,
-              color: passed ? const Color(0xFF16A34A) : color,
+              color: passed ? const Color(0xFF16A34A) : ageColor,
               backgroundColor: statusColor.withValues(alpha: 0.10),
             ),
           ),
@@ -1443,8 +1447,36 @@ class _ScoreResultState extends State<ScoreResult> {
   /// Replace these 3 builders
   /// =======================
 
+  Widget _undeterminedDevelopmentCard(String title) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFFE082)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            const Text('Belum dapat ditentukan'),
+            const SizedBox(height: 4),
+            const Text(
+              'Semak jawapan domain ini melalui Continue Draft.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDevelopmentCard(
-      String title, double developmentalAge, int actualAge) {
+      String title, double? developmentalAge, int actualAge) {
+    if (developmentalAge == null) return _undeterminedDevelopmentCard(title);
     final bool ok = developmentalAge == actualAge.toDouble();
     final Color pillColor = ok ? Colors.green : Colors.red;
 
@@ -1512,7 +1544,9 @@ class _ScoreResultState extends State<ScoreResult> {
                 LinearBarPointer(
                   value: developmentalAge,
                   thickness: 1.h,
-                  color: Growkids.purpleFlo,
+                  color: developmentalAge < actualAge
+                      ? const Color(0xFFDC3545)
+                      : const Color(0xFF16A34A),
                 ),
               ],
               animationDuration: 1200,

@@ -1,3 +1,4 @@
+import 'development_age.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -178,41 +179,9 @@ class _EditScreeningState extends State<EditScreening> {
   // If all questions in a domain are "Pass", set age to student's actual age.
   // Otherwise, check for three consecutive "Pass" responses.
   void checkConsecutivePasses(String domain) {
-    List<Map<String, dynamic>> qs = domainQuestions[domain]!;
-    bool allPassed = qs.every((q) => q['selectedOption'] == 'Pass');
-    if (allPassed) {
-      setState(() {
-        developmentAgeByDomain[domain] = widget.age;
-      });
-      return;
-    }
-    int passCounter = 0;
-    double? firstPassAge;
-    bool encounteredNonPass = false;
-    for (var q in qs) {
-      if (q['selectedOption'] == 'Pass') {
-        if (!encounteredNonPass) continue;
-        passCounter++;
-        if (passCounter == 1) {
-          firstPassAge = q['pass75'];
-        }
-        if (passCounter == 3) {
-          setState(() {
-            developmentAgeByDomain[domain] = firstPassAge;
-          });
-          return;
-        }
-      } else {
-        encounteredNonPass = true;
-        passCounter = 0;
-        firstPassAge = null;
-      }
-    }
-
-    // Do not retain the previous/actual age after the therapist changes a
-    // response and there is no longer a valid three-pass baseline.
+    final age = calculateDevelopmentAge(domainQuestions[domain]!, widget.age);
     setState(() {
-      developmentAgeByDomain[domain] = null;
+      developmentAgeByDomain[domain] = age;
     });
   }
 
