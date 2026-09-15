@@ -12,6 +12,40 @@
 .swiftpm/
 migrate_working_dir/
 .codex_tmp/
+.codex_work/
+
+# Local database scripts and compressed dumps (all directories)
+*.[sS][qQ][lL]
+*.[sS][qQ][lL].*
+
+# Local credentials and signing material
+.env
+.env.*
+*.env
+*.env.*
+.secrets/
+secrets/
+credentials.json
+credentials.*.json
+client_secret*.json
+*service-account*.json
+*service_account*.json
+*firebase-adminsdk*.json
+key.properties
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+*.mobileprovision
+.netrc
+.npmrc
+.pypirc
+/config.php
+
+# Generated Android build reports
+/android/build/
 
 # IntelliJ related
 *.iml
