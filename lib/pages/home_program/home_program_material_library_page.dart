@@ -8,6 +8,7 @@ import 'package:growcheck_app_v2/ui/colour.dart';
 import 'package:http/http.dart' as http;
 import 'package:printing/printing.dart';
 import 'package:sizer/sizer.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 bool _useDesktopHomeProgramLibraryLayout(BuildContext context) {
   final platform = Theme.of(context).platform;
@@ -18,7 +19,12 @@ bool _useDesktopHomeProgramLibraryLayout(BuildContext context) {
 }
 
 class HomeProgramMaterialLibraryPage extends StatefulWidget {
-  const HomeProgramMaterialLibraryPage({super.key});
+  final String staffId;
+
+  const HomeProgramMaterialLibraryPage({
+    super.key,
+    required this.staffId,
+  });
 
   @override
   State<HomeProgramMaterialLibraryPage> createState() =>
@@ -28,6 +34,8 @@ class HomeProgramMaterialLibraryPage extends StatefulWidget {
 class _HomeProgramMaterialLibraryPageState
     extends State<HomeProgramMaterialLibraryPage> {
   static final _url = ApiConfig.flutter('program_get_materials.php');
+  static final _archiveUrl =
+      ApiConfig.flutter('home_program_archive_material.php');
 
   final _search = TextEditingController();
   Timer? _debounce;
@@ -185,6 +193,55 @@ class _HomeProgramMaterialLibraryPageState
     _load(page: 1);
   }
 
+  Future<void> _archiveMaterial(Map<String, dynamic> item) async {
+    final title = (item['title'] ?? 'this material').toString();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete material?'),
+        content: Text(
+          '“$title” will be removed from the material library and cannot be assigned again. Existing records are kept.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final res = await http.post(
+        Uri.parse(_archiveUrl),
+        body: {
+          'material_id': (item['id'] ?? '').toString(),
+          'staff_id': widget.staffId,
+        },
+      );
+      final decoded = jsonDecode(res.body);
+      if (decoded['status'] != 'success') {
+        throw Exception(decoded['message'] ?? 'Unable to delete material.');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Material deleted from the library.')),
+      );
+      await _load(page: _page);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasFilter = _query.isNotEmpty || _selectedCategory != 'All';
@@ -248,7 +305,12 @@ class _HomeProgramMaterialLibraryPageState
                       total: _total,
                     ),
                     SizedBox(height: 1.h),
-                    ..._materials.map((item) => _MaterialCard(item: item)),
+                    ..._materials.map(
+                      (item) => _MaterialCard(
+                        item: item,
+                        onDelete: () => _archiveMaterial(item),
+                      ),
+                    ),
                     _PaginationBar(
                       page: _page,
                       totalPages: _totalPages,
@@ -422,10 +484,9 @@ class _HomeProgramMaterialLibraryPageState
                       : _error != null
                           ? _MessageCard(text: _error!, isError: true)
                           : _materials.isEmpty
-                              ? _MessageCard(
-                                  text: hasFilter
-                                      ? 'No material found for this filter.'
-                                      : 'No materials uploaded yet.',
+                              ? _DesktopLibraryEmptyState(
+                                  isFiltered: hasFilter,
+                                  onClear: hasFilter ? _clearFilters : null,
                                 )
                               : GridView.builder(
                                   gridDelegate:
@@ -439,6 +500,8 @@ class _HomeProgramMaterialLibraryPageState
                                   itemBuilder: (_, index) =>
                                       _DesktopMaterialCard(
                                     item: _materials[index],
+                                    onDelete: () =>
+                                        _archiveMaterial(_materials[index]),
                                   ),
                                 ),
                 ),
@@ -460,9 +523,85 @@ class _HomeProgramMaterialLibraryPageState
   }
 }
 
+class _DesktopLibraryEmptyState extends StatelessWidget {
+  final bool isFiltered;
+  final VoidCallback? onClear;
+
+  const _DesktopLibraryEmptyState({
+    required this.isFiltered,
+    this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 30),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE3E6EC)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: Growkids.purpleFlo.withValues(alpha: .09),
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: const Icon(
+                  Icons.folder_open_rounded,
+                  color: Growkids.purpleFlo,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isFiltered ? 'No matching materials' : 'Your library is empty',
+                style: const TextStyle(
+                  color: Color(0xFF30323C),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                isFiltered
+                    ? 'Try another search or category.'
+                    : 'Upload a document or video to start building your resource library.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF7C8190),
+                  fontSize: 11,
+                  height: 1.45,
+                ),
+              ),
+              if (onClear != null) ...[
+                const SizedBox(height: 14),
+                TextButton.icon(
+                  onPressed: onClear,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                  label: const Text('Clear filters'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DesktopMaterialCard extends StatelessWidget {
   final Map<String, dynamic> item;
-  const _DesktopMaterialCard({required this.item});
+  final VoidCallback? onDelete;
+
+  const _DesktopMaterialCard({required this.item, this.onDelete});
 
   List<_MaterialFile> _files() {
     final raw = item['files'] is List ? item['files'] as List : const [];
@@ -540,12 +679,28 @@ class _DesktopMaterialCard extends StatelessWidget {
                   child: Icon(
                     files.any((file) => file.fileType == 'pdf')
                         ? Icons.picture_as_pdf_rounded
-                        : Icons.article_rounded,
+                        : files.any(
+                            (file) =>
+                                file.fileType == 'mp4' ||
+                                file.fileType == 'mov',
+                          )
+                            ? Icons.play_circle_outline_rounded
+                            : Icons.article_rounded,
                     color: Growkids.purpleFlo,
                     size: 22,
                   ),
                 ),
                 const Spacer(),
+                if (onDelete != null)
+                  IconButton(
+                    tooltip: 'Delete material',
+                    onPressed: onDelete,
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: Color(0xFFB42318),
+                      size: 19,
+                    ),
+                  ),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
@@ -697,8 +852,9 @@ class _DesktopCategoryDialog extends StatelessWidget {
 
 class _MaterialCard extends StatelessWidget {
   final Map<String, dynamic> item;
+  final VoidCallback? onDelete;
 
-  const _MaterialCard({required this.item});
+  const _MaterialCard({required this.item, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -737,7 +893,9 @@ class _MaterialCard extends StatelessWidget {
               radius: 4.h,
               backgroundColor: Growkids.purpleFlo.withValues(alpha: 0.10),
               child: Icon(
-                Icons.description_rounded,
+                type == 'MP4' || type == 'MOV'
+                    ? Icons.play_circle_outline_rounded
+                    : Icons.description_rounded,
                 color: Growkids.purpleFlo,
                 size: 4.h,
               ),
@@ -805,6 +963,16 @@ class _MaterialCard extends StatelessWidget {
                   Icons.visibility_rounded,
                   color: Growkids.purpleFlo.withValues(alpha: 0.72),
                 ),
+                if (onDelete != null)
+                  IconButton(
+                    tooltip: 'Delete material',
+                    onPressed: onDelete,
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: Color(0xFFB42318),
+                    ),
+                  ),
               ],
             ),
           ],
@@ -921,10 +1089,15 @@ class _MaterialFileTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canPreview = file.fileType == 'pdf';
+    final isVideo = file.fileType == 'mp4' || file.fileType == 'mov';
 
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: () {
+        if (isVideo) {
+          _openVideo(context);
+          return;
+        }
         if (!canPreview) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -954,7 +1127,7 @@ class _MaterialFileTile extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: canPreview
+                color: canPreview || isVideo
                     ? Growkids.purpleFlo.withValues(alpha: 0.10)
                     : Colors.black.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
@@ -962,8 +1135,10 @@ class _MaterialFileTile extends StatelessWidget {
               child: Icon(
                 canPreview
                     ? Icons.picture_as_pdf_rounded
-                    : Icons.article_rounded,
-                color: canPreview
+                    : isVideo
+                        ? Icons.play_circle_outline_rounded
+                        : Icons.article_rounded,
+                color: canPreview || isVideo
                     ? Growkids.purpleFlo
                     : Colors.black.withValues(alpha: 0.55),
               ),
@@ -981,7 +1156,11 @@ class _MaterialFileTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    canPreview ? 'Tap to preview' : 'Document file',
+                    canPreview
+                        ? 'Tap to preview'
+                        : isVideo
+                            ? 'Tap to play video'
+                            : 'Document file',
                     style: TextStyle(
                       color: Colors.black.withValues(alpha: 0.55),
                     ),
@@ -993,8 +1172,10 @@ class _MaterialFileTile extends StatelessWidget {
             Icon(
               canPreview
                   ? Icons.visibility_rounded
-                  : Icons.insert_drive_file_rounded,
-              color: canPreview
+                  : isVideo
+                      ? Icons.play_arrow_rounded
+                      : Icons.insert_drive_file_rounded,
+              color: canPreview || isVideo
                   ? Growkids.purpleFlo
                   : Colors.black.withValues(alpha: 0.45),
             ),
@@ -1002,6 +1183,18 @@ class _MaterialFileTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _openVideo(BuildContext context) async {
+    final opened = await launchUrl(
+      Uri.parse(file.url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to open this video.')),
+      );
+    }
   }
 }
 

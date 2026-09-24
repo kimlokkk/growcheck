@@ -340,6 +340,7 @@ class _DesktopAssignmentCard extends StatelessWidget {
           builder: (_) => HomeProgramAssignmentDetailPage(
             assignment: assignment,
             therapistId: therapistId,
+            allowParentFeedbackDeletion: true,
           ),
         ),
       ),
@@ -604,6 +605,7 @@ class _AssignmentCard extends StatelessWidget {
             builder: (_) => HomeProgramAssignmentDetailPage(
               assignment: assignment,
               therapistId: therapistId,
+              allowParentFeedbackDeletion: true,
             ),
           ),
         );

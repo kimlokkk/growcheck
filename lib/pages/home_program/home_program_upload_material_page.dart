@@ -84,7 +84,7 @@ class _HomeProgramUploadMaterialPageState
   Future<void> _pickFiles() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'docx'],
+      allowedExtensions: ['pdf', 'docx', 'mp4', 'mov'],
       withData: kIsWeb,
       allowMultiple: true,
     );
@@ -241,7 +241,7 @@ class _HomeProgramUploadMaterialPageState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'PDF or DOCX files',
+                          'PDF, DOCX, MP4 or MOV files',
                           style: TextStyle(
                             fontSize: 12.sp,
                           ),
@@ -409,7 +409,7 @@ class _HomeProgramUploadMaterialPageState
                               _desktopSectionHeading(
                                 Icons.attach_file_rounded,
                                 'Files',
-                                'Attach one or more PDF or DOCX files.',
+                                'Attach one or more documents or videos.',
                               ),
                               const SizedBox(height: 18),
                               InkWell(
@@ -445,7 +445,7 @@ class _HomeProgramUploadMaterialPageState
                                       ),
                                       const SizedBox(height: 4),
                                       const Text(
-                                        'PDF or DOCX',
+                                        'PDF, DOCX, MP4 or MOV',
                                         style: TextStyle(
                                           color: Color(0xFF9296A2),
                                           fontSize: 8,

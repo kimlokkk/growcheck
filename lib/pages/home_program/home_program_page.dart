@@ -147,28 +147,30 @@ class _HomeProgramPageState extends State<HomeProgramPage> {
             const _SectionTitle(
               title: 'Quick Actions',
               subtitle:
-                  'Upload documents, assign to official students, and review parent replies.',
+                  'Upload materials, assign to official students, and review parent replies.',
             ),
             SizedBox(height: 2.h),
             _ActionGrid(
               children: [
                 _ActionCard(
                   title: 'Material Library',
-                  subtitle: 'PDF and DOCX resources',
+                  subtitle: 'Documents and videos',
                   icon: Icons.folder_copy_rounded,
                   color: const Color(0xFF3B82F6),
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const HomeProgramMaterialLibraryPage(),
+                        builder: (_) => HomeProgramMaterialLibraryPage(
+                          staffId: widget.therapistId,
+                        ),
                       ),
                     );
                   },
                 ),
                 _ActionCard(
                   title: 'Upload Material',
-                  subtitle: 'Add PDF or DOCX',
+                  subtitle: 'Add documents or videos',
                   icon: Icons.upload_file_rounded,
                   color: const Color(0xFF8B5CF6),
                   onTap: () async {
@@ -567,7 +569,9 @@ class _HomeProgramPageState extends State<HomeProgramPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const HomeProgramMaterialLibraryPage(),
+        builder: (_) => HomeProgramMaterialLibraryPage(
+          staffId: widget.therapistId,
+        ),
       ),
     );
   }

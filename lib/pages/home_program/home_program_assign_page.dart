@@ -472,7 +472,7 @@ class _HomeProgramAssignPageState extends State<HomeProgramAssignPage> {
   }
 }
 
-class _DesktopPickerPanel extends StatelessWidget {
+class _DesktopPickerPanel extends StatefulWidget {
   final String title;
   final String subtitle;
   final IconData icon;
@@ -494,7 +494,31 @@ class _DesktopPickerPanel extends StatelessWidget {
   });
 
   @override
+  State<_DesktopPickerPanel> createState() => _DesktopPickerPanelState();
+}
+
+class _DesktopPickerPanelState extends State<_DesktopPickerPanel> {
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  List<Map<String, dynamic>> get _filteredItems {
+    final query = _search.text.trim().toLowerCase();
+    if (query.isEmpty) return widget.items;
+
+    return widget.items.where((item) {
+      return widget.labelBuilder(item).toLowerCase().contains(query) ||
+          widget.detailBuilder(item).toLowerCase().contains(query);
+    }).toList();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final items = _filteredItems;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -515,7 +539,7 @@ class _DesktopPickerPanel extends StatelessWidget {
                   color: Growkids.purpleFlo.withValues(alpha: .09),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: Growkids.purpleFlo, size: 22),
+                child: Icon(widget.icon, color: Growkids.purpleFlo, size: 22),
               ),
               const SizedBox(width: 11),
               Expanded(
@@ -523,7 +547,7 @@ class _DesktopPickerPanel extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
+                      widget.title,
                       style: const TextStyle(
                         color: Color(0xFF30323C),
                         fontSize: 14,
@@ -532,7 +556,7 @@ class _DesktopPickerPanel extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      subtitle,
+                      widget.subtitle,
                       style: const TextStyle(
                         color: Color(0xFF8B8F9C),
                         fontSize: 8,
@@ -543,18 +567,41 @@ class _DesktopPickerPanel extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 17),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _search,
+            onChanged: (_) => setState(() {}),
+            style: const TextStyle(fontSize: 10),
+            decoration: InputDecoration(
+              hintText: 'Search...',
+              prefixIcon: const Icon(Icons.search_rounded, size: 18),
+              isDense: true,
+              filled: true,
+              fillColor: const Color(0xFFF7F8FB),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(11),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           Expanded(
             child: items.isEmpty
-                ? const Center(child: Text('No options available.'))
+                ? Center(
+                    child: Text(
+                      _search.text.trim().isEmpty
+                          ? 'No options available.'
+                          : 'No matching result.',
+                    ),
+                  )
                 : ListView.separated(
                     itemCount: items.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (_, index) {
                       final item = items[index];
-                      final selected = identical(item, value);
+                      final selected = identical(item, widget.value);
                       return InkWell(
-                        onTap: () => onChanged(item),
+                        onTap: () => widget.onChanged(item),
                         borderRadius: BorderRadius.circular(11),
                         child: Container(
                           padding: const EdgeInsets.all(12),
@@ -586,7 +633,7 @@ class _DesktopPickerPanel extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      labelBuilder(item),
+                                      widget.labelBuilder(item),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
@@ -597,7 +644,7 @@ class _DesktopPickerPanel extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 3),
                                     Text(
-                                      detailBuilder(item),
+                                      widget.detailBuilder(item),
                                       style: const TextStyle(
                                         color: Color(0xFF8C909C),
                                         fontSize: 8,
