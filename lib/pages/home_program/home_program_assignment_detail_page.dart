@@ -22,11 +22,13 @@ bool _useDesktopProgramFeedbackLayout(BuildContext context) {
 class HomeProgramAssignmentDetailPage extends StatefulWidget {
   final Map<String, dynamic> assignment;
   final String therapistId;
+  final bool allowParentFeedbackDeletion;
 
   const HomeProgramAssignmentDetailPage({
     super.key,
     required this.assignment,
     required this.therapistId,
+    this.allowParentFeedbackDeletion = false,
   });
 
   @override
@@ -40,6 +42,8 @@ class _HomeProgramAssignmentDetailPageState
       ApiConfig.flutter('home_program_get_feedback.php');
   static final _addFeedbackUrl =
       ApiConfig.flutter('home_program_add_feedback.php');
+  static final _deleteFeedbackUrl =
+      ApiConfig.flutter('home_program_delete_feedback.php');
 
   final _message = TextEditingController();
 
@@ -125,6 +129,46 @@ class _HomeProgramAssignmentDetailPageState
     }
   }
 
+  Future<void> _deleteParentFeedback(Map<String, dynamic> item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete parent feedback?'),
+        content: const Text('This feedback will be permanently deleted.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final res = await http.post(
+        Uri.parse(_deleteFeedbackUrl),
+        body: {
+          'feedback_id': (item['id'] ?? '').toString(),
+          'therapist_id': widget.therapistId,
+        },
+      );
+      final decoded = jsonDecode(res.body);
+      if (decoded['status'] != 'success') {
+        throw Exception(decoded['message'] ?? 'Unable to delete feedback.');
+      }
+      await _loadFeedback();
+      _snack('Parent feedback deleted.');
+    } catch (error) {
+      _snack(error.toString());
+    }
+  }
+
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -175,7 +219,12 @@ class _HomeProgramAssignmentDetailPageState
                             ? _MessageCard(text: _error!, isError: true)
                             : _feedback.isEmpty
                                 ? const _MessageCard(text: 'No feedback yet.')
-                                : _FeedbackThread(items: _feedback),
+                                : _FeedbackThread(
+                                    items: _feedback,
+                                    onDelete: widget.allowParentFeedbackDeletion
+                                        ? _deleteParentFeedback
+                                        : null,
+                                  ),
                   ),
                 ],
               ),
@@ -581,28 +630,45 @@ class _HomeProgramAssignmentDetailPageState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    isTherapist ? 'Therapist' : 'Parent',
-                    style: TextStyle(
-                      color: isTherapist
-                          ? Growkids.purple
-                          : const Color(0xFF656A78),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
+                  Expanded(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isTherapist ? 'Therapist' : 'Parent',
+                          style: TextStyle(
+                            color: isTherapist
+                                ? Growkids.purple
+                                : const Color(0xFF656A78),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (createdAt.isNotEmpty) ...[
+                          const SizedBox(width: 12),
+                          Text(
+                            createdAt,
+                            style: const TextStyle(
+                              color: Color(0xFF9296A3),
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                  if (createdAt.isNotEmpty) ...[
-                    const SizedBox(width: 12),
-                    Text(
-                      createdAt,
-                      style: const TextStyle(
-                        color: Color(0xFF9296A3),
-                        fontSize: 10,
+                  if (!isTherapist && widget.allowParentFeedbackDeletion)
+                    IconButton(
+                      tooltip: 'Delete parent feedback',
+                      onPressed: () => _deleteParentFeedback(item),
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: Color(0xFFB42318),
+                        size: 18,
                       ),
                     ),
-                  ],
                 ],
               ),
               const SizedBox(height: 6),
@@ -922,8 +988,9 @@ class _ThreadSection extends StatelessWidget {
 
 class _FeedbackThread extends StatelessWidget {
   final List<Map<String, dynamic>> items;
+  final Future<void> Function(Map<String, dynamic>)? onDelete;
 
-  const _FeedbackThread({required this.items});
+  const _FeedbackThread({required this.items, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -932,6 +999,7 @@ class _FeedbackThread extends StatelessWidget {
         return _FeedbackThreadItem(
           item: items[index],
           isLast: index == items.length - 1,
+          onDelete: onDelete,
         );
       }),
     );
@@ -941,10 +1009,12 @@ class _FeedbackThread extends StatelessWidget {
 class _FeedbackThreadItem extends StatelessWidget {
   final Map<String, dynamic> item;
   final bool isLast;
+  final Future<void> Function(Map<String, dynamic>)? onDelete;
 
   const _FeedbackThreadItem({
     required this.item,
     required this.isLast,
+    this.onDelete,
   });
 
   @override
@@ -1026,6 +1096,17 @@ class _FeedbackThreadItem extends StatelessWidget {
                               fontSize: 12.sp,
                               color: Colors.black.withValues(alpha: 0.45),
                             ),
+                          ),
+                        ),
+                      if (!isTherapist && onDelete != null)
+                        IconButton(
+                          tooltip: 'Delete parent feedback',
+                          onPressed: () => onDelete!(item),
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: Color(0xFFB42318),
+                            size: 18,
                           ),
                         ),
                     ],
