@@ -297,10 +297,6 @@ class _OnboardSharedState extends State<OnboardShared>
 
   @override
   Widget build(BuildContext context) {
-    if (!useDesktopOnboardingLayout(context)) {
-      return _buildLegacy(context);
-    }
-
     return ResponsiveOnboardLayout(
       fadeAnimation: _fadeAnimation,
       slideAnimation: _slideAnimation,

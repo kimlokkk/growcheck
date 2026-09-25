@@ -68,10 +68,6 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    if (!useDesktopOnboardingLayout(context)) {
-      return _buildLegacy(context);
-    }
-
     return ResponsiveOnboardLayout(
       fadeAnimation: _fadeAnimation,
       slideAnimation: _slideAnimation,

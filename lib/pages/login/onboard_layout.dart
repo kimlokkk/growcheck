@@ -35,67 +35,74 @@ class ResponsiveOnboardLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF471AFF),
-              Color(0xFF6C48FF),
-              Color(0xFF9980FF),
-            ],
+    return DefaultTextStyle.merge(
+      // Renogare is a display font. Using it for every small mobile label
+      // causes uneven spacing in Chrome; use the bundled reading font here.
+      style: const TextStyle(fontFamily: 'Roboto'),
+      child: Scaffold(
+        body: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF471AFF),
+                Color(0xFF6C48FF),
+                Color(0xFF9980FF),
+              ],
+            ),
           ),
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            _decorativeCircle(
-              top: -120,
-              right: -90,
-              size: 340,
-              color: Colors.white.withValues(alpha: 0.06),
-            ),
-            _decorativeCircle(
-              bottom: -170,
-              left: -130,
-              size: 390,
-              color: Colors.white.withValues(alpha: 0.05),
-            ),
-            _decorativeCircle(
-              top: 250,
-              right: -70,
-              size: 210,
-              color: Growkids.pink.withValues(alpha: 0.10),
-            ),
-            SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isDesktop = constraints.maxWidth >= _desktopBreakpoint;
-                  return SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isDesktop ? 48 : 24,
-                      vertical: isDesktop ? 32 : 28,
-                    ),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight:
-                            constraints.maxHeight - (isDesktop ? 64 : 56),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _decorativeCircle(
+                top: -120,
+                right: -90,
+                size: 340,
+                color: Colors.white.withValues(alpha: 0.06),
+              ),
+              _decorativeCircle(
+                bottom: -170,
+                left: -130,
+                size: 390,
+                color: Colors.white.withValues(alpha: 0.05),
+              ),
+              _decorativeCircle(
+                top: 250,
+                right: -70,
+                size: 210,
+                color: Growkids.pink.withValues(alpha: 0.10),
+              ),
+              SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop =
+                        constraints.maxWidth >= _desktopBreakpoint;
+                    return SingleChildScrollView(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isDesktop ? 48 : 24,
+                        vertical: isDesktop ? 32 : 28,
                       ),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1180),
-                          child:
-                              isDesktop ? _desktopContent() : _mobileContent(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight:
+                              constraints.maxHeight - (isDesktop ? 64 : 56),
+                        ),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1180),
+                            child: isDesktop
+                                ? _desktopContent()
+                                : _mobileContent(),
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
