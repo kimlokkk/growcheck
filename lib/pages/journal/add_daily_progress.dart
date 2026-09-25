@@ -267,6 +267,25 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
     }
   }
 
+  Future<void> _pickVideoFromGallery() async {
+    try {
+      final video = await _imagePicker.pickVideo(source: ImageSource.gallery);
+      if (video == null || !mounted) return;
+
+      final bytes = kIsWeb ? await video.readAsBytes() : null;
+      final selectedVideo = PlatformFile(
+        name: video.name,
+        path: kIsWeb ? null : video.path,
+        size: bytes?.length ?? await video.length(),
+        bytes: bytes,
+      );
+      if (!mounted) return;
+      setState(() => _attachments.add(selectedVideo));
+    } catch (error) {
+      _showError('Failed to open video gallery: $error');
+    }
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -410,16 +429,25 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
                   ListTile(
                     leading: const Icon(Icons.photo_library_rounded,
                         color: Growkids.purpleFlo),
-                    title: const Text('Open Gallery'),
+                    title: const Text('Open Photo Gallery'),
                     onTap: () {
                       Navigator.pop(context);
                       _pickFromGallery();
                     },
                   ),
                   ListTile(
+                    leading: const Icon(Icons.video_library_rounded,
+                        color: Growkids.purpleFlo),
+                    title: const Text('Open Video Gallery'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickVideoFromGallery();
+                    },
+                  ),
+                  ListTile(
                     leading: const Icon(Icons.attach_file_rounded,
                         color: Growkids.purpleFlo),
-                    title: const Text('Browse Files or Video'),
+                    title: const Text('Browse Images, Videos, PDF or DOCX'),
                     onTap: () {
                       Navigator.pop(context);
                       _pickFiles();
@@ -705,7 +733,10 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
               SizedBox(height: 2.h),
 
               // --- ATTACHMENT SECTION ---
-              _sectionTitle('Attachments', subtitle: ' (Photos/Videos/Files)'),
+              _sectionTitle(
+                'Attachments',
+                subtitle: ' (Images, Videos, PDF or DOCX)',
+              ),
 
               InkWell(
                 onTap: _showAttachmentOptions,
@@ -1139,7 +1170,7 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Photos, videos, PDF or document files.',
+                      'Images, videos, PDF or DOCX files.',
                       style: TextStyle(
                         color: Color(0xFF777C8D),
                         fontSize: 10,
@@ -1351,7 +1382,7 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
           ),
           SizedBox(height: 4),
           Text(
-            'Add photos, videos or supporting documents.',
+            'Add images, videos, PDF or DOCX files.',
             style: TextStyle(color: Color(0xFF9296A2), fontSize: 9),
           ),
         ],
