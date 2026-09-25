@@ -97,6 +97,7 @@ class _OnboardState extends State<Onboard> with SingleTickerProviderStateMixin {
     );
   }
 
+  // ignore: unused_element
   Widget _buildLegacy(BuildContext context) {
     return Scaffold(
       body: Container(

@@ -36,9 +36,8 @@ class ResponsiveOnboardLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTextStyle.merge(
-      // Renogare is a display font. Using it for every small mobile label
-      // causes uneven spacing in Chrome; use the bundled reading font here.
-      style: const TextStyle(fontFamily: 'Roboto'),
+      // Keep the app's selected display font on every onboarding platform.
+      style: const TextStyle(fontFamily: 'Renogare'),
       child: Scaffold(
         body: DecoratedBox(
           decoration: const BoxDecoration(

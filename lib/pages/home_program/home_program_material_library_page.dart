@@ -679,13 +679,15 @@ class _DesktopMaterialCard extends StatelessWidget {
                   child: Icon(
                     files.any((file) => file.fileType == 'pdf')
                         ? Icons.picture_as_pdf_rounded
-                        : files.any(
-                            (file) =>
-                                file.fileType == 'mp4' ||
-                                file.fileType == 'mov',
-                          )
-                            ? Icons.play_circle_outline_rounded
-                            : Icons.article_rounded,
+                        : files.any(_isImageFile)
+                            ? Icons.image_rounded
+                            : files.any(
+                                (file) =>
+                                    file.fileType == 'mp4' ||
+                                    file.fileType == 'mov',
+                              )
+                                ? Icons.play_circle_outline_rounded
+                                : Icons.article_rounded,
                     color: Growkids.purpleFlo,
                     size: 22,
                   ),
@@ -1088,7 +1090,8 @@ class _MaterialFileTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canPreview = file.fileType == 'pdf';
+    final isImage = _isImageFile(file);
+    final isPdf = file.fileType == 'pdf';
     final isVideo = file.fileType == 'mp4' || file.fileType == 'mov';
 
     return InkWell(
@@ -1098,7 +1101,11 @@ class _MaterialFileTile extends StatelessWidget {
           _openVideo(context);
           return;
         }
-        if (!canPreview) {
+        if (isImage) {
+          _openImage(context);
+          return;
+        }
+        if (!isPdf) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('DOCX preview is not available in app yet.'),
@@ -1127,18 +1134,20 @@ class _MaterialFileTile extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: canPreview || isVideo
+                color: isPdf || isImage || isVideo
                     ? Growkids.purpleFlo.withValues(alpha: 0.10)
                     : Colors.black.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                canPreview
-                    ? Icons.picture_as_pdf_rounded
-                    : isVideo
-                        ? Icons.play_circle_outline_rounded
-                        : Icons.article_rounded,
-                color: canPreview || isVideo
+                isImage
+                    ? Icons.image_rounded
+                    : isPdf
+                        ? Icons.picture_as_pdf_rounded
+                        : isVideo
+                            ? Icons.play_circle_outline_rounded
+                            : Icons.article_rounded,
+                color: isPdf || isImage || isVideo
                     ? Growkids.purpleFlo
                     : Colors.black.withValues(alpha: 0.55),
               ),
@@ -1156,11 +1165,13 @@ class _MaterialFileTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    canPreview
-                        ? 'Tap to preview'
-                        : isVideo
-                            ? 'Tap to play video'
-                            : 'Document file',
+                    isImage
+                        ? 'Tap to view image'
+                        : isPdf
+                            ? 'Tap to preview'
+                            : isVideo
+                                ? 'Tap to play video'
+                                : 'Document file',
                     style: TextStyle(
                       color: Colors.black.withValues(alpha: 0.55),
                     ),
@@ -1170,12 +1181,14 @@ class _MaterialFileTile extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Icon(
-              canPreview
+              isImage
                   ? Icons.visibility_rounded
-                  : isVideo
-                      ? Icons.play_arrow_rounded
-                      : Icons.insert_drive_file_rounded,
-              color: canPreview || isVideo
+                  : isPdf
+                      ? Icons.visibility_rounded
+                      : isVideo
+                          ? Icons.play_arrow_rounded
+                          : Icons.insert_drive_file_rounded,
+              color: isPdf || isImage || isVideo
                   ? Growkids.purpleFlo
                   : Colors.black.withValues(alpha: 0.45),
             ),
@@ -1196,6 +1209,48 @@ class _MaterialFileTile extends StatelessWidget {
       );
     }
   }
+
+  void _openImage(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.85),
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                minScale: 0.8,
+                maxScale: 5,
+                child: Image.network(
+                  file.url,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.broken_image_outlined,
+                    color: Colors.white,
+                    size: 56,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: IconButton.filled(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+bool _isImageFile(_MaterialFile file) {
+  return const {'jpg', 'jpeg', 'png'}.contains(file.fileType);
 }
 
 class _HomeProgramPdfPreviewPage extends StatelessWidget {

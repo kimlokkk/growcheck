@@ -307,6 +307,7 @@ class _OnboardSharedState extends State<OnboardShared>
     );
   }
 
+  // ignore: unused_element
   Widget _buildLegacy(BuildContext context) {
     return Scaffold(
       body: Container(
