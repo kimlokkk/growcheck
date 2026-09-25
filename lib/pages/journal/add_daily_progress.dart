@@ -705,7 +705,7 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
               SizedBox(height: 2.h),
 
               // --- ATTACHMENT SECTION ---
-              _sectionTitle('Attachments', subtitle: ' (Photos/Files)'),
+              _sectionTitle('Attachments', subtitle: ' (Photos/Videos/Files)'),
 
               InkWell(
                 onTap: _showAttachmentOptions,
@@ -1139,7 +1139,7 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Photos, PDF or document files.',
+                      'Photos, videos, PDF or document files.',
                       style: TextStyle(
                         color: Color(0xFF777C8D),
                         fontSize: 10,
@@ -1351,7 +1351,7 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
           ),
           SizedBox(height: 4),
           Text(
-            'Add photos or supporting documents.',
+            'Add photos, videos or supporting documents.',
             style: TextStyle(color: Color(0xFF9296A2), fontSize: 9),
           ),
         ],

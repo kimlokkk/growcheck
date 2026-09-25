@@ -241,7 +241,7 @@ class _HomeProgramUploadMaterialPageState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'PDF, DOCX, MP4 or MOV files',
+                          'Images (JPG, JPEG, PNG), PDF, DOCX, MP4 or MOV',
                           style: TextStyle(
                             fontSize: 12.sp,
                           ),
@@ -445,7 +445,7 @@ class _HomeProgramUploadMaterialPageState
                                       ),
                                       const SizedBox(height: 4),
                                       const Text(
-                                        'PDF, DOCX, MP4 or MOV',
+                                        'JPG, JPEG, PNG, PDF, DOCX, MP4 or MOV',
                                         style: TextStyle(
                                           color: Color(0xFF9296A2),
                                           fontSize: 8,
