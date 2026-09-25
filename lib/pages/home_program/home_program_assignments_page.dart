@@ -32,6 +32,10 @@ class HomeProgramAssignmentsPage extends StatefulWidget {
 class _HomeProgramAssignmentsPageState
     extends State<HomeProgramAssignmentsPage> {
   static final _url = ApiConfig.flutter('home_program_get_assignments.php');
+  static final _updateUrl =
+      ApiConfig.flutter('home_program_update_assignment.php');
+  static final _deleteUrl =
+      ApiConfig.flutter('home_program_delete_assignment.php');
 
   bool _loading = true;
   String? _error;
@@ -77,6 +81,112 @@ class _HomeProgramAssignmentsPageState
     }
   }
 
+  Future<void> _editAssignment(Map<String, dynamic> assignment) async {
+    final note = TextEditingController(
+      text: (assignment['therapist_note'] ?? '').toString(),
+    );
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit Home Program'),
+        content: TextField(
+          controller: note,
+          minLines: 3,
+          maxLines: 5,
+          decoration: const InputDecoration(
+            labelText: 'Instructions for parent',
+            hintText: 'Optional instructions',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (saved != true || !mounted) {
+      note.dispose();
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse(_updateUrl),
+        body: {
+          'assignment_id': (assignment['assignment_id'] ?? '').toString(),
+          'therapist_id': widget.therapistId,
+          'therapist_note': note.text.trim(),
+        },
+      );
+      final decoded = jsonDecode(response.body);
+      if (decoded['status'] != 'success') {
+        throw Exception(decoded['message'] ?? 'Unable to update Home Program');
+      }
+      if (!mounted) return;
+      _snack(decoded['message'] ?? 'Home Program updated.');
+      await _load();
+    } catch (error) {
+      _snack(error.toString());
+    } finally {
+      note.dispose();
+    }
+  }
+
+  Future<void> _deleteAssignment(Map<String, dynamic> assignment) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Home Program?'),
+        content: const Text(
+          'This program will no longer be visible to the parent. Existing feedback is kept for records.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final response = await http.post(
+        Uri.parse(_deleteUrl),
+        body: {
+          'assignment_id': (assignment['assignment_id'] ?? '').toString(),
+          'therapist_id': widget.therapistId,
+        },
+      );
+      final decoded = jsonDecode(response.body);
+      if (decoded['status'] != 'success') {
+        throw Exception(decoded['message'] ?? 'Unable to delete Home Program');
+      }
+      if (!mounted) return;
+      _snack(decoded['message'] ?? 'Home Program deleted.');
+      await _load();
+    } catch (error) {
+      _snack(error.toString());
+    }
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_useDesktopHomeProgramAssignmentsLayout(context)) {
@@ -116,6 +226,8 @@ class _HomeProgramAssignmentsPageState
                       (assignment) => _AssignmentCard(
                         assignment: assignment,
                         therapistId: widget.therapistId,
+                        onEdit: () => _editAssignment(assignment),
+                        onDelete: () => _deleteAssignment(assignment),
                       ),
                     ),
                 ],
@@ -262,6 +374,10 @@ class _HomeProgramAssignmentsPageState
                                       _DesktopAssignmentCard(
                                     assignment: _assignments[index],
                                     therapistId: widget.therapistId,
+                                    onEdit: () =>
+                                        _editAssignment(_assignments[index]),
+                                    onDelete: () =>
+                                        _deleteAssignment(_assignments[index]),
                                   ),
                                 ),
                 ),
@@ -316,10 +432,14 @@ class _HomeProgramAssignmentsPageState
 class _DesktopAssignmentCard extends StatelessWidget {
   final Map<String, dynamic> assignment;
   final String therapistId;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const _DesktopAssignmentCard({
     required this.assignment,
     required this.therapistId,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   @override
@@ -398,6 +518,7 @@ class _DesktopAssignmentCard extends StatelessWidget {
                   ),
                 ),
                 _DesktopStatusChip(status: status),
+                _AssignmentActions(onEdit: onEdit, onDelete: onDelete),
               ],
             ),
             const SizedBox(height: 15),
@@ -471,6 +592,44 @@ class _DesktopStatusChip extends StatelessWidget {
           fontWeight: FontWeight.w800,
         ),
       ),
+    );
+  }
+}
+
+class _AssignmentActions extends StatelessWidget {
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _AssignmentActions({required this.onEdit, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: 'Manage Home Program',
+      icon: const Icon(Icons.more_vert_rounded),
+      onSelected: (action) {
+        if (action == 'edit') {
+          onEdit();
+        } else {
+          onDelete();
+        }
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: 'edit',
+          child: ListTile(
+            leading: Icon(Icons.edit_outlined),
+            title: Text('Edit instructions'),
+          ),
+        ),
+        PopupMenuItem(
+          value: 'delete',
+          child: ListTile(
+            leading: Icon(Icons.delete_outline, color: Colors.red),
+            title: Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -577,10 +736,14 @@ class _Header extends StatelessWidget {
 class _AssignmentCard extends StatelessWidget {
   final Map<String, dynamic> assignment;
   final String therapistId;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const _AssignmentCard({
     required this.assignment,
     required this.therapistId,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   @override
@@ -666,6 +829,7 @@ class _AssignmentCard extends StatelessWidget {
                   ),
                 ),
                 _StatusChip(status: status),
+                _AssignmentActions(onEdit: onEdit, onDelete: onDelete),
               ],
             ),
             SizedBox(height: 2.h),

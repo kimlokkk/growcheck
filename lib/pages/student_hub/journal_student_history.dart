@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:sizer/sizer.dart';
 import 'package:intl/intl.dart';
 import 'package:growcheck_app_v2/ui/colour.dart'; // Pastikan path betul
+import 'package:url_launcher/url_launcher.dart';
 
 bool _useDesktopStudentJournalLayout(BuildContext context) {
   final desktopPlatform = switch (defaultTargetPlatform) {
@@ -134,6 +135,39 @@ class _StudentJournalPageState extends State<StudentJournalPage> {
 
     return [value];
   }
+
+  bool _isVideoAttachment(String value) {
+    final path = Uri.tryParse(value)?.path.toLowerCase() ?? value.toLowerCase();
+    return path.endsWith('.mp4') ||
+        path.endsWith('.mov') ||
+        path.endsWith('.m4v') ||
+        path.endsWith('.webm');
+  }
+
+  Future<void> _openVideo(String url) async {
+    if (!await launchUrl(Uri.parse(url),
+        mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to open video.')),
+        );
+      }
+    }
+  }
+
+  Widget _videoTile() => Container(
+        color: const Color(0xFFF0F1F5),
+        alignment: Alignment.center,
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.play_circle_fill_rounded,
+                color: Growkids.purpleFlo, size: 40),
+            SizedBox(height: 4),
+            Text('Video'),
+          ],
+        ),
+      );
 
   String _normalizeAttachmentUrl(String value) {
     var trimmed = value.trim().replaceAll('\\', '/');
@@ -402,35 +436,42 @@ class _StudentJournalPageState extends State<StudentJournalPage> {
                               ),
                               itemBuilder: (context, index) {
                                 final imageUrl = attachments[index];
+                                final isVideo = _isVideoAttachment(imageUrl);
 
                                 return ClipRRect(
                                   borderRadius: BorderRadius.circular(14),
                                   child: InkWell(
-                                    onTap: () =>
-                                        _showImagePreview(attachments, index),
-                                    child: Container(
-                                      color: Colors.grey[100],
-                                      child: Image.network(
-                                        imageUrl,
-                                        fit: BoxFit.cover,
-                                        loadingBuilder:
-                                            (context, child, loadingProgress) {
-                                          if (loadingProgress == null) {
-                                            return child;
-                                          }
-                                          return const Center(
-                                            child: CircularProgressIndicator(
-                                                color: Growkids.purpleFlo),
-                                          );
-                                        },
-                                        errorBuilder: (_, __, ___) => Container(
-                                          color: Colors.grey[200],
-                                          alignment: Alignment.center,
-                                          child: Icon(Icons.broken_image,
-                                              size: 4.h),
-                                        ),
-                                      ),
-                                    ),
+                                    onTap: () => isVideo
+                                        ? _openVideo(imageUrl)
+                                        : _showImagePreview(attachments, index),
+                                    child: isVideo
+                                        ? _videoTile()
+                                        : Container(
+                                            color: Colors.grey[100],
+                                            child: Image.network(
+                                              imageUrl,
+                                              fit: BoxFit.cover,
+                                              loadingBuilder: (context, child,
+                                                  loadingProgress) {
+                                                if (loadingProgress == null) {
+                                                  return child;
+                                                }
+                                                return const Center(
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                          color: Growkids
+                                                              .purpleFlo),
+                                                );
+                                              },
+                                              errorBuilder: (_, __, ___) =>
+                                                  Container(
+                                                color: Colors.grey[200],
+                                                alignment: Alignment.center,
+                                                child: Icon(Icons.broken_image,
+                                                    size: 4.h),
+                                              ),
+                                            ),
+                                          ),
                                   ),
                                 );
                               },
@@ -1168,32 +1209,43 @@ class _StudentJournalPageState extends State<StudentJournalPage> {
                               mainAxisSpacing: 12,
                               childAspectRatio: 1.35,
                             ),
-                            itemBuilder: (context, index) => ClipRRect(
-                              borderRadius: BorderRadius.circular(13),
-                              child: InkWell(
-                                onTap: () =>
-                                    _showImagePreview(attachments, index),
-                                child: Image.network(
-                                  attachments[index],
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (context, child, progress) =>
-                                      progress == null
-                                          ? child
-                                          : const Center(
-                                              child: CircularProgressIndicator(
-                                                color: Growkids.purpleFlo,
-                                              ),
+                            itemBuilder: (context, index) {
+                              final attachment = attachments[index];
+                              final isVideo = _isVideoAttachment(attachment);
+                              return ClipRRect(
+                                borderRadius: BorderRadius.circular(13),
+                                child: InkWell(
+                                  onTap: () => isVideo
+                                      ? _openVideo(attachment)
+                                      : _showImagePreview(attachments, index),
+                                  child: isVideo
+                                      ? _videoTile()
+                                      : Image.network(
+                                          attachment,
+                                          fit: BoxFit.cover,
+                                          loadingBuilder: (context, child,
+                                                  progress) =>
+                                              progress == null
+                                                  ? child
+                                                  : const Center(
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                        color:
+                                                            Growkids.purpleFlo,
+                                                      ),
+                                                    ),
+                                          errorBuilder: (_, __, ___) =>
+                                              const ColoredBox(
+                                            color: Color(0xFFF0F1F5),
+                                            child: Center(
+                                              child: Icon(
+                                                  Icons.broken_image_outlined),
                                             ),
-                                  errorBuilder: (_, __, ___) =>
-                                      const ColoredBox(
-                                    color: Color(0xFFF0F1F5),
-                                    child: Center(
-                                      child: Icon(Icons.broken_image_outlined),
-                                    ),
-                                  ),
+                                          ),
+                                        ),
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                           ),
                         ],
                       ],

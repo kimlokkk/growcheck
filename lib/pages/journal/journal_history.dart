@@ -7,6 +7,7 @@ import 'package:growcheck_app_v2/ui/colour.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:sizer/sizer.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 bool _useDesktopJournalHistoryLayout(BuildContext context) {
   final desktopPlatform = switch (defaultTargetPlatform) {
@@ -17,6 +18,32 @@ bool _useDesktopJournalHistoryLayout(BuildContext context) {
     _ => false,
   };
   return desktopPlatform && MediaQuery.sizeOf(context).width >= 900;
+}
+
+bool _isJournalVideo(String value) {
+  final path = Uri.tryParse(value)?.path.toLowerCase() ?? value.toLowerCase();
+  return path.endsWith('.mp4') ||
+      path.endsWith('.mov') ||
+      path.endsWith('.m4v') ||
+      path.endsWith('.webm');
+}
+
+Widget _journalVideoTile() => Container(
+      color: const Color(0xFFEEF0F4),
+      alignment: Alignment.center,
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.play_circle_fill_rounded,
+              color: Growkids.purpleFlo, size: 40),
+          SizedBox(height: 5),
+          Text('Video', style: TextStyle(color: Color(0xFF555A67))),
+        ],
+      ),
+    );
+
+Future<void> _openJournalVideo(String url) async {
+  await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 }
 
 List<String> _parseJournalAttachments(dynamic rawValue) {
@@ -145,6 +172,14 @@ class _JournalHistoryPageState extends State<JournalHistoryPage> {
 
       final List list = decoded['data'];
       final out = list.map((e) => _JournalItem.fromJson(e)).toList();
+      // Keep entries grouped by student so staff can find a child's journal
+      // without having to scan a date-ordered mixed list.
+      out.sort((a, b) {
+        final byName = a.studentName.toLowerCase().compareTo(
+              b.studentName.toLowerCase(),
+            );
+        return byName != 0 ? byName : b.logDate.compareTo(a.logDate);
+      });
 
       setState(() {
         _data = out;
@@ -168,10 +203,7 @@ class _JournalHistoryPageState extends State<JournalHistoryPage> {
 
     setState(() {
       _filtered = _data
-          .where((x) =>
-              x.title.toLowerCase().contains(query) ||
-              x.content.toLowerCase().contains(query) ||
-              x.studentName.toLowerCase().contains(query))
+          .where((x) => x.studentName.toLowerCase().contains(query))
           .toList();
     });
   }
@@ -224,7 +256,7 @@ class _JournalHistoryPageState extends State<JournalHistoryPage> {
               controller: _searchCtrl,
               onChanged: _filter,
               decoration: InputDecoration(
-                hintText: 'Search journal...',
+                hintText: 'Search by student name...',
                 prefixIcon: const Icon(Icons.search_rounded),
                 filled: true,
                 fillColor: Colors.white,
@@ -339,7 +371,7 @@ class _JournalHistoryPageState extends State<JournalHistoryPage> {
                         onChanged: _filter,
                         style: const TextStyle(fontSize: 13),
                         decoration: InputDecoration(
-                          hintText: 'Search student, title or content...',
+                          hintText: 'Search by student name...',
                           prefixIcon:
                               const Icon(Icons.search_rounded, size: 21),
                           filled: true,
@@ -1193,38 +1225,47 @@ class _DesktopJournalDetailsDialog extends StatelessWidget {
                                         itemBuilder: (context, index) {
                                           final imageUrl =
                                               item.attachments[index];
+                                          final isVideo =
+                                              _isJournalVideo(imageUrl);
                                           return InkWell(
-                                            onTap: () => _showDesktopImage(
-                                                context, imageUrl),
+                                            onTap: () => isVideo
+                                                ? _openJournalVideo(imageUrl)
+                                                : _showDesktopImage(
+                                                    context, imageUrl),
                                             borderRadius:
                                                 BorderRadius.circular(11),
                                             child: ClipRRect(
                                               borderRadius:
                                                   BorderRadius.circular(11),
-                                              child: Image.network(
-                                                imageUrl,
-                                                fit: BoxFit.cover,
-                                                loadingBuilder: (
-                                                  context,
-                                                  child,
-                                                  progress,
-                                                ) =>
-                                                    progress == null
-                                                        ? child
-                                                        : const Center(
-                                                            child:
-                                                                CircularProgressIndicator(),
-                                                          ),
-                                                errorBuilder: (_, __, ___) =>
-                                                    Container(
-                                                  color:
-                                                      const Color(0xFFEEF0F4),
-                                                  child: const Icon(
-                                                    Icons.broken_image_outlined,
-                                                    color: Color(0xFF9A9EAA),
-                                                  ),
-                                                ),
-                                              ),
+                                              child: isVideo
+                                                  ? _journalVideoTile()
+                                                  : Image.network(
+                                                      imageUrl,
+                                                      fit: BoxFit.cover,
+                                                      loadingBuilder: (
+                                                        context,
+                                                        child,
+                                                        progress,
+                                                      ) =>
+                                                          progress == null
+                                                              ? child
+                                                              : const Center(
+                                                                  child:
+                                                                      CircularProgressIndicator(),
+                                                                ),
+                                                      errorBuilder:
+                                                          (_, __, ___) =>
+                                                              Container(
+                                                        color: const Color(
+                                                            0xFFEEF0F4),
+                                                        child: const Icon(
+                                                          Icons
+                                                              .broken_image_outlined,
+                                                          color:
+                                                              Color(0xFF9A9EAA),
+                                                        ),
+                                                      ),
+                                                    ),
                                             ),
                                           );
                                         },
@@ -1490,12 +1531,16 @@ class _JournalDetailsDialog extends StatelessWidget {
                         ),
                         itemBuilder: (context, index) {
                           final imageUrl = item.attachments[index];
-                          print('IMAGE URL USED: $imageUrl');
+                          final isVideo = _isJournalVideo(imageUrl);
 
                           return ClipRRect(
                             borderRadius: BorderRadius.circular(14),
                             child: InkWell(
                               onTap: () {
+                                if (isVideo) {
+                                  _openJournalVideo(imageUrl);
+                                  return;
+                                }
                                 showDialog(
                                   context: context,
                                   builder: (_) => Dialog(
@@ -1516,27 +1561,32 @@ class _JournalDetailsDialog extends StatelessWidget {
                                   ),
                                 );
                               },
-                              child: Container(
-                                color: Colors.grey[100],
-                                child: Image.network(
-                                  imageUrl,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder:
-                                      (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return const Center(
-                                      child: CircularProgressIndicator(
-                                        color: Growkids.purpleFlo,
+                              child: isVideo
+                                  ? _journalVideoTile()
+                                  : Container(
+                                      color: Colors.grey[100],
+                                      child: Image.network(
+                                        imageUrl,
+                                        fit: BoxFit.cover,
+                                        loadingBuilder:
+                                            (context, child, loadingProgress) {
+                                          if (loadingProgress == null) {
+                                            return child;
+                                          }
+                                          return const Center(
+                                            child: CircularProgressIndicator(
+                                              color: Growkids.purpleFlo,
+                                            ),
+                                          );
+                                        },
+                                        errorBuilder: (_, __, ___) => Container(
+                                          color: Colors.grey[200],
+                                          alignment: Alignment.center,
+                                          child: Icon(Icons.broken_image,
+                                              size: 4.h),
+                                        ),
                                       ),
-                                    );
-                                  },
-                                  errorBuilder: (_, __, ___) => Container(
-                                    color: Colors.grey[200],
-                                    alignment: Alignment.center,
-                                    child: Icon(Icons.broken_image, size: 4.h),
-                                  ),
-                                ),
-                              ),
+                                    ),
                             ),
                           );
                         },

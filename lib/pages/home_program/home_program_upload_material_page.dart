@@ -84,7 +84,7 @@ class _HomeProgramUploadMaterialPageState
   Future<void> _pickFiles() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'docx', 'mp4', 'mov'],
+      allowedExtensions: ['pdf', 'docx', 'jpg', 'jpeg', 'png', 'mp4', 'mov'],
       withData: kIsWeb,
       allowMultiple: true,
     );

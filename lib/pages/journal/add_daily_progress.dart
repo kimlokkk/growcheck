@@ -99,7 +99,18 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
         allowMultiple: true,
         withData: kIsWeb,
         type: FileType.custom,
-        allowedExtensions: ['jpg', 'png', 'jpeg', 'pdf', 'doc', 'docx'],
+        allowedExtensions: [
+          'jpg',
+          'png',
+          'jpeg',
+          'pdf',
+          'doc',
+          'docx',
+          'mp4',
+          'mov',
+          'm4v',
+          'webm',
+        ],
       );
 
       if (result != null && mounted) {
@@ -328,7 +339,7 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
                           ),
                           SizedBox(height: 3),
                           Text(
-                            'Choose photos or browse files from your computer.',
+                            'Choose photos, videos, or browse files from your computer.',
                             style: TextStyle(
                               color: Color(0xFF7D8290),
                               fontSize: 10,
@@ -363,7 +374,7 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
                       child: _desktopAttachmentOption(
                         icon: Icons.folder_open_rounded,
                         title: 'Browse Files',
-                        subtitle: 'Images, PDF or documents',
+                        subtitle: 'Images, videos, PDF or documents',
                         color: const Color(0xFF3478F6),
                         onTap: () {
                           Navigator.pop(dialogContext);
@@ -408,7 +419,7 @@ class _AddDailyProgressPageState extends State<AddDailyProgressPage> {
                   ListTile(
                     leading: const Icon(Icons.attach_file_rounded,
                         color: Growkids.purpleFlo),
-                    title: const Text('Browse Files'),
+                    title: const Text('Browse Files or Video'),
                     onTap: () {
                       Navigator.pop(context);
                       _pickFiles();
