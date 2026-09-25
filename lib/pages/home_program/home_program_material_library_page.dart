@@ -1678,7 +1678,16 @@ class _MaterialFile {
 
   factory _MaterialFile.fromMap(Map<String, dynamic> map) {
     final name = (map['file_name'] ?? 'Material file').toString();
-    final fileType = (map['file_type'] ?? '').toString().toLowerCase();
+    final rawType =
+        (map['file_type'] ?? map['mime_type'] ?? '').toString().toLowerCase();
+    final extension =
+        name.contains('.') ? name.split('.').last.toLowerCase() : '';
+    // Older records may store a MIME value (for example image/jpeg) or an
+    // empty type. The filename is the reliable fallback for opening media.
+    final fileType = const {'jpg', 'jpeg', 'png', 'pdf', 'docx', 'mp4', 'mov'}
+            .contains(extension)
+        ? extension
+        : rawType.replaceFirst(RegExp(r'^image/|^video/'), '');
     final url = (map['file_url'] ?? '').toString();
 
     return _MaterialFile(name: name, fileType: fileType, url: url);
